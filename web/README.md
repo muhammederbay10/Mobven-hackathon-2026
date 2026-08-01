@@ -13,7 +13,7 @@ npm run test
 npm run build
 ```
 
-`lint`, `typecheck` and `test` run today. `dev` and `build` become functional once the Phase 0 frontend steps add `app/layout.tsx` and the route files.
+All five run today. Point `NEXT_PUBLIC_API_BASE_URL` at the bank API (`web/.env.local`) and start the API first.
 
 ## Routes — frozen at five (GAP-14)
 
@@ -34,8 +34,8 @@ A sixth route may be added only if it replaces an existing one, and only before 
 | `lib/types.ts` | hand-written mirror of the frozen contracts — what the app codes against |
 | `lib/contracts.ts` | zod schemas for runtime validation, plus type-level drift guards |
 | `lib/contracts.test.ts` | offline contract tests over delivered fixtures |
-| `lib/api.ts` | the API layer (Phase 0 frontend step 4) |
-| `lib/format.ts` | display formatting, including money (Phase 0 frontend step 4) |
+| `lib/api.ts` | the API layer — the only file allowed to call `fetch` |
+| `lib/format.ts` | display formatting; the only place money leaves minor units |
 
 `lib/contracts.ts` asserts each zod schema and its twin in `types.ts` are mutually assignable, so drift between the two fails `npm run typecheck`. See [`../docs/CONTRACT_FREEZE.md`](../docs/CONTRACT_FREEZE.md).
 
@@ -51,6 +51,21 @@ A sixth route may be added only if it replaces an existing one, and only before 
 - **Server state is authoritative.** The application ID lives in the URL, and the stepper follows backend application status rather than local completion guesses — a refresh must not reset progress.
 - Animation may delay a *visual* reveal, but never delays or alters the actual API result.
 
+## Components
+
+| File | Role |
+|---|---|
+| `components/SiteHeader.tsx` | header and the five-route nav |
+| `components/Layout.tsx` | `Card`, `PageHeading`, `SectionLabel`, `PhoneFrame`, `DocumentPaper` |
+| `components/Status.tsx` | `StatusIcon`, `StatusBadge`, `VerdictBanner`, `SimBadge` |
+| `components/States.tsx` | `LoadingState`, `EmptyState`, `ErrorState` |
+
+`ErrorState` chooses between a retry affordance and a terminal message from the API's own `retryable` flag — never from a client-side guess. A retry button on something that can never succeed is worse than no button.
+
 ## Design tokens
 
-Presentation primitives are carried over from `docs/fbdocs/index.html` — colors, spacing, radii, document-paper styling, status styles and the phone frame. That file is authoritative for presentation intent only; its client-side hardcoding of verdicts and approvals is mock behavior and must not be copied into this app.
+Presentation primitives are carried over from `docs/fbdocs/index.html` — colors, spacing, radii, document-paper styling, status styles and the phone frame. They live in `app/globals.css` as a Tailwind v4 `@theme` block, so `bg-brand`, `text-ok`, `border-line-strong` and friends are the same values the mock used.
+
+That file is authoritative for presentation intent **only**. Its client-side hardcoding of verdicts, limits and approvals is mock behavior and is deliberately not carried over (plan section 1.4.10).
+
+The app is light-only by design: the demo is projector-first, and one high-contrast surface reads better from the back of a room than a theme that adapts.

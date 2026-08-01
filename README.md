@@ -92,18 +92,18 @@ Start order for a demo: reset → API on :8000 → web on :3000. The AI service 
 
 ### What runs today
 
-Phase 0 shared architecture, backend, and data/fixture steps are complete. Working now:
+**Phase 0 is complete** — shared architecture, backend, data/fixtures and frontend. Working now:
 
 ```bash
 scripts/reset_demo.ps1                                  # or reset_demo.sh
-python -m uvicorn api.main:app --reload --port 8000
-python -m pytest api/tests
-curl -X POST localhost:8000/api/demo/load-case/1        # -> {"application_id": 1}
+python -m uvicorn api.main:app --reload --port 8000     # terminal 1
+cd web && npm run dev                                   # terminal 2 -> :3000
 ```
 
-`GET /health`, `GET /ready`, `GET /api/demo/cases`, `POST /api/demo/load-case/{n}` and `POST /api/demo/reset` are live.
+API: `GET /health`, `GET /ready`, `GET /api/demo/cases`, `POST /api/demo/load-case/{n}`, `POST /api/demo/reset`.
+Web: all five routes render with the carried-over design system, and every command (`dev`, `lint`, `typecheck`, `test`, `build`) works.
 
-Still to come: `npm run dev` / `npm run build` need the Phase 0 **frontend** steps (`app/layout.tsx` and the route files). Document upload, analysis and the review screen are Phase 1.
+The route screens are skeletons — they show their headings, chrome and empty states. Case cards, intake, upload, the review screen, mobile transactions and the registry table are Phase 1 onwards.
 
 Two Phase 0 data items are blocked on external input:
 

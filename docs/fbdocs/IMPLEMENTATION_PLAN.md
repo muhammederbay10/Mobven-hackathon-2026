@@ -1,10 +1,17 @@
 # YetkiCheck — implementation-ready delivery plan
 
-**Canonical product source:** `docs/fbdocs/PROJECT.md`  
-**Reference experience:** `docs/fbdocs/index.html`  
-**Implementation ownership:** full-stack track only — `web/`, `api/`, data/demo tooling, and integration with the externally owned AI service.  
-**Purpose of this document:** turn the full-stack product plan into an executable specification that a coding agent can implement without inventing architecture, contracts, state transitions, or demo behavior.  
-**Precedence:** when this plan and `PROJECT.md` differ on product intent, `PROJECT.md` wins. When `PROJECT.md` is silent on implementation detail, this plan is authoritative. `index.html` is authoritative for presentation intent, not for security, persistence, or business logic.
+**Canonical product source:** `docs/fbdocs/PROJECT.md`
+
+**Reference workflow experience:** `docs/fbdocs/index.html`
+
+**Reference visual design:** `docs/fbdocs/design/nexai-dashboard-reference.png`
+
+**Frozen visual contract:** `docs/fbdocs/design/DESIGN_SYSTEM.md`
+
+**Implementation ownership:** full-stack track only — `web/`, `api/`, data/demo tooling, and integration with the externally owned AI service.
+
+**Purpose of this document:** turn the full-stack product plan into an executable specification that a coding agent can implement without inventing architecture, contracts, state transitions, or demo behavior.
+**Precedence:** when this plan and `PROJECT.md` differ on product intent, `PROJECT.md` wins. When `PROJECT.md` is silent on implementation detail, this plan is authoritative. `DESIGN_SYSTEM.md` and its reference PNG are authoritative for the global shell, typography, colors, sidebar, top bar, cards, controls, spacing, and responsive behavior. `index.html` remains authoritative for YetkiCheck-specific workflow presentation, document/phone treatments, and semantic status behavior. No visual reference is authoritative for security, persistence, or business logic.
 
 ---
 
@@ -335,6 +342,10 @@ docs/fbdocs/
   PROJECT.md
   IMPLEMENTATION_PLAN.md
   index.html
+  design/
+    DESIGN_SYSTEM.md
+    FRONTEND_IMPLEMENTOR_PROMPT.md
+    nexai-dashboard-reference.png
 ```
 
 ## 4.2 Runtime flow
@@ -961,6 +972,17 @@ The co-sign endpoint must:
 - Green/amber/red status is communicated by icon and text, not color alone.
 - Turkish copy is the user-facing default.
 
+### Visual design authority
+
+- `docs/fbdocs/design/DESIGN_SYSTEM.md` and `docs/fbdocs/design/nexai-dashboard-reference.png` define the shared application shell and visual language for every route.
+- The PNG is a style reference, not a product template. Do not copy its NexAI branding, navigation names, charts, metrics, hypotheses, or product copy.
+- Apply its pale-gray canvas, rounded white shell, grouped left sidebar, compact top bar, restrained borders/shadows, typography, cards, controls, cyan/pink/violet accents, and whitespace to YetkiCheck.
+- Preserve the route scope and product-specific workflow surfaces defined in this plan and `index.html`.
+- Semantic green/amber/red outcomes always take precedence over decorative accent colors.
+- Global colors, typography, radii, spacing, shadows, shell anatomy, and responsive navigation are centralized; route components must not create independent visual systems.
+- The shared shell must work across `/`, `/branch`, `/mobile`, `/authority/[mersis]`, and `/registry`, with the active navigation state derived from the current route.
+- A screenshot cannot prove an original font file, so Inter is the frozen closest-match UI family unless an original CSS/Figma source is deliberately accepted later. Use an offline-safe local font asset for the judged build.
+
 ## 10.2 `/` — demo control
 
 - Four case cards with expected outcome labels.
@@ -1141,10 +1163,11 @@ Before the end of H1, both engineers confirm the closed decisions in section 1.5
 ### Frontend steps
 
 1. Scaffold Next.js with TypeScript and Tailwind.
-2. Copy only presentation primitives from `index.html`: colors, spacing, radii, document-paper styling, status styles, and phone frame.
-3. Add the route skeleton for control, branch, mobile, authority, and registry.
-4. Create `web/lib/api.ts`, `web/lib/types.ts`, and formatting helpers.
-5. Add empty/loading/error primitives and shared status components.
+2. Commit the supplied visual reference and freeze `docs/fbdocs/design/DESIGN_SYSTEM.md`; use it for the global shell, typography, colors, sidebar, top bar, cards, controls, spacing, and responsive behavior.
+3. Preserve only the YetkiCheck-specific presentation primitives from `index.html`: document-paper styling, semantic status treatments, branch workflow, evidence/check presentation, and phone frame.
+4. Add the route skeleton for control, branch, mobile, authority, and registry.
+5. Create `web/lib/api.ts`, `web/lib/types.ts`, and formatting helpers.
+6. Add empty/loading/error primitives and shared status components.
 
 ### Integration steps
 
@@ -1158,6 +1181,7 @@ Before the end of H1, both engineers confirm the closed decisions in section 1.5
 - [ ] Shared fixtures validate against Python and TypeScript contracts.
 - [ ] The database can be created and reset in under two seconds.
 - [ ] Four documents, page images, extraction fixtures, and report fixtures exist.
+- [ ] The committed visual reference and `DESIGN_SYSTEM.md` are readable and frozen for frontend agents.
 - [ ] Web and API skeletons expose controlled health/readiness behavior, and API readiness reports external AI reachability without owning its process.
 - [ ] No secrets, runtime uploads, database files, or mutable registry files are tracked.
 - [ ] Both machines can reach the chosen runtime layout, or the fallback is proven.
@@ -1172,6 +1196,7 @@ Before the end of H1, both engineers confirm the closed decisions in section 1.5
 
 - Phase 0 contracts and fixtures are frozen.
 - Stub extraction and report JSON validate successfully.
+- The post-Phase-0 visual handoff is frozen in `docs/fbdocs/design/DESIGN_SYSTEM.md`, and the reference PNG is committed beside it.
 
 ### Backend steps
 
@@ -1200,12 +1225,13 @@ Before the end of H1, both engineers confirm the closed decisions in section 1.5
 
 ### Frontend steps
 
-1. Build the control panel with four case cards and the flow strip.
-2. Load a case through the backend and route using the persistent application ID.
-3. Build branch step 1 with company/applicant fields and required identity attestation.
-4. Build branch step 2 with file/scan presentation, upload progress, thumbnail, and required original-seen attestation.
-5. Drive the stepper from backend application status, not local completion guesses.
-6. Show recoverable API errors without losing the current application ID.
+1. Implement the shared visual foundation from `DESIGN_SYSTEM.md`: centralized tokens, Inter typography, rounded application shell, grouped persistent sidebar, compact top bar/breadcrumbs, panels, cards, controls, and responsive navigation.
+2. Build the control panel with four case cards and the flow strip inside that shared shell; adapt YetkiCheck content rather than copying the reference dashboard's product content.
+3. Load a case through the backend and route using the persistent application ID.
+4. Build branch step 1 with company/applicant fields and required identity attestation.
+5. Build branch step 2 with file/scan presentation, upload progress, thumbnail, and required original-seen attestation.
+6. Drive the stepper from backend application status, not local completion guesses.
+7. Show recoverable API errors without losing the current application ID.
 
 ### Review and verification steps
 
@@ -1221,6 +1247,7 @@ Before the end of H1, both engineers confirm the closed decisions in section 1.5
 - [ ] Analyze in stub mode persists one extraction and one nine-check report.
 - [ ] Refresh does not reset branch progress.
 - [ ] All errors use the standard error contract and expose no stack trace.
+- [ ] All five route skeletons render inside the shared design-system shell, and `/` plus `/branch` match the reference's visual character without copying its content.
 
 ---
 
@@ -1476,12 +1503,13 @@ Before the end of H1, both engineers confirm the closed decisions in section 1.5
 ### Frontend steps
 
 1. Focus polish on branch review, mobile, authority, and registry demo states.
-2. Verify 1280x800 projector layout, font size, contrast, and no horizontal overflow.
-3. Verify status meaning is available without color.
-4. Verify Turkish characters, dates, numbers, and filenames display correctly.
-5. Remove console errors and unhandled promise rejections.
-6. Confirm every async state has loading, empty, retryable error, and terminal error UI.
-7. Freeze nonessential visual work at H40.
+2. Compare all five routes against `DESIGN_SYSTEM.md` and the committed reference image; confirm one consistent sidebar, top bar, typography, palette, card language, spacing, and responsive shell.
+3. Verify 1280x800 projector layout, font size, contrast, and no horizontal overflow.
+4. Verify status meaning is available without color.
+5. Verify Turkish characters, dates, numbers, and filenames display correctly.
+6. Remove console errors and unhandled promise rejections.
+7. Confirm every async state has loading, empty, retryable error, and terminal error UI.
+8. Freeze nonessential visual work at H40.
 
 ### End-to-end verification steps
 
@@ -1497,6 +1525,7 @@ Before the end of H1, both engineers confirm the closed decisions in section 1.5
 - [ ] No sensitive data or stack traces appear in logs/UI.
 - [ ] No demonstrated route produces a console error or unhandled failure.
 - [ ] Projector and accessibility checks pass.
+- [ ] Every route uses the same frozen shell/tokens and reproduces the reference's visual character without NexAI branding or unrelated product content.
 - [ ] Only demo-path defects remain eligible for changes.
 
 ---
@@ -1604,9 +1633,9 @@ The following task cards refine the phases above. Each task is small enough for 
 
 ### `P1-04` Frontend shell and control panel
 
-- **Dependencies:** P0-02, demo load endpoint from P0-04
-- **Deliverables:** design tokens, navigation, case cards, flow strip, API layer.
-- **Acceptance:** selecting a case creates server state and routes to its branch URL.
+- **Dependencies:** P0-02, demo load endpoint from P0-04, committed `DESIGN_SYSTEM.md`, and committed visual-reference PNG.
+- **Deliverables:** centralized visual tokens; offline-safe Inter typography; shared rounded application shell; grouped persistent/responsive sidebar; compact top bar and breadcrumbs; reusable panel/card/control primitives; YetkiCheck navigation; case cards; flow strip; API layer.
+- **Acceptance:** all five route skeletons render inside the same responsive shell; the shell matches the frozen reference character at `1280x800`; NexAI branding/content is absent; sidebar active/focus/mobile behavior works; semantic statuses remain correct; selecting a case creates server state and routes to its branch URL.
 
 ### `P1-05` Branch intake and scan
 
@@ -1696,8 +1725,8 @@ The following task cards refine the phases above. Each task is small enough for 
 ### `P5-03` UI and projector pass
 
 - **Dependencies:** all frontend tasks
-- **Deliverables:** responsive fixes, accessibility, 1280x800 layout, Turkish text/encoding pass.
-- **Acceptance:** no horizontal overflow on demo screens, statuses work without color, registry is readable from distance.
+- **Deliverables:** design-system consistency pass, reference comparison, responsive fixes, accessibility, 1280x800 layout, Turkish text/encoding pass.
+- **Acceptance:** all five routes share the frozen sidebar/top bar/typography/palette/card language; no horizontal overflow on demo screens; statuses work without color; registry is readable from distance; no NexAI branding or unrelated reference content appears.
 
 ### `P5-04` Reset and rehearsal tooling
 

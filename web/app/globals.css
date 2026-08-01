@@ -1,0 +1,164 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Design tokens carried over from docs/fbdocs/index.html.
+   Plan Phase 0 frontend step 2: copy ONLY presentation primitives — colors,
+   spacing, radii, document-paper styling, status styles and the phone frame.
+   The mock's client-side hardcoding of verdicts and approvals is mock behavior
+   and is deliberately not carried over (plan section 1.4.10).
+
+   The demo is projector-first and light-only on purpose: a single high-contrast
+   surface reads better from the back of a room than a theme that adapts.
+   ========================================================================== */
+
+@theme {
+  --color-bg: #f4f6f9;
+  --color-surface: #ffffff;
+  --color-surface-2: #f8f9fb;
+
+  --color-line: #e3e7ee;
+  --color-line-strong: #cdd4e0;
+
+  --color-ink: #151a22;
+  --color-ink-2: #5d6878;
+  --color-ink-3: #8b95a5;
+
+  --color-brand: #12408f;
+  --color-brand-bg: #e8effa;
+
+  --color-ok: #12703f;
+  --color-ok-bg: #e7f4ec;
+  --color-warn: #8a5a00;
+  --color-warn-bg: #fcf1de;
+  --color-bad: #a92c22;
+  --color-bad-bg: #fbeae8;
+
+  --radius-card: 12px;
+  --radius-control: 10px;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-paper: Georgia, "Times New Roman", serif;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* Visible focus everywhere: the demo is driven partly from the keyboard
+   (case shortcuts 1-4) and a lost focus ring on stage is a lost click. */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+@layer components {
+  /* --- document paper ---------------------------------------------------- */
+  .paper {
+    background: #fff;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 6px;
+    padding: 22px 20px;
+    font-family: var(--font-paper);
+    font-size: 11.5px;
+    line-height: 1.75;
+    color: #2b3543;
+    position: relative;
+  }
+  .paper h4 {
+    text-align: center;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    margin: 0 0 16px;
+    font-weight: 700;
+  }
+  .paper p {
+    margin: 0 0 11px;
+    text-align: justify;
+  }
+  /* Evidence highlight. `.flash` draws the eye when a check is selected. */
+  .paper .hl {
+    background: #fff3c4;
+    box-shadow: 0 0 0 3px #fff3c4;
+    border-radius: 2px;
+  }
+  .paper .hl.flash {
+    animation: evidence-flash 1.4s ease 2;
+  }
+  @keyframes evidence-flash {
+    0%,
+    100% {
+      background: #fff3c4;
+      box-shadow: 0 0 0 3px #fff3c4;
+    }
+    50% {
+      background: #ffd84d;
+      box-shadow: 0 0 0 3px #ffd84d;
+    }
+  }
+  .paper-seal {
+    position: absolute;
+    right: 22px;
+    bottom: 20px;
+    width: 74px;
+    height: 74px;
+    border: 2px solid #b7c0cf;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    font-size: 7.5px;
+    color: var(--color-ink-3);
+    transform: rotate(-11deg);
+    letter-spacing: 0.04em;
+  }
+
+  /* --- phone frame ------------------------------------------------------- */
+  .phone {
+    width: 372px;
+    flex: none;
+    background: #0d1117;
+    border-radius: 34px;
+    padding: 11px;
+    box-shadow: 0 10px 34px rgb(15 25 45 / 0.16);
+  }
+  .phone-inner {
+    background: var(--color-surface);
+    border-radius: 26px;
+    overflow: hidden;
+    min-height: 640px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* --- animation --------------------------------------------------------- */
+  /* Reveal choreography only. Plan section 10.3: animation may delay a visual
+     reveal, but it must never delay or alter the actual API result. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(-3px);
+    transition: 0.35s;
+  }
+  .reveal.in {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
