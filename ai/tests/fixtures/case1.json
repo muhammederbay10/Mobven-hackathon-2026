@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "document_id": "doc_01",
+  "company": {
+    "name": "ABC Teknoloji Limited Şirketi",
+    "taxNumber": "1234567890",
+    "mersisNumber": "0123456789000017",
+    "legalNameNormalized": "abc teknoloji"
+  },
+  "notary": {
+    "name": "İstanbul 18. Noterliği",
+    "date": "2026-03-15",
+    "yevmiye": "08912"
+  },
+  "validUntil": "2028-03-15",
+  "representatives": [
+    {
+      "name": "Ali Yılmaz",
+      "nameNormalized": "ali yilmaz",
+      "nationalId": "123******01",
+      "title": "Müdür",
+      "mode": "SOLE",
+      "coSigners": [],
+      "limits": 500000.0
+    },
+    {
+      "name": "Ayşe Demir",
+      "nameNormalized": "ayse demir",
+      "nationalId": "456******23",
+      "title": "Müdür",
+      "mode": "JOINT",
+      "coSigners": [
+        "Ali Yılmaz"
+      ],
+      "limits": null
+    }
+  ],
+  "fieldsNeedingReview": [],
+  "evidence": {
+    "authorityClause": "Ali YILMAZ, şirket unvanı veya kaşesi altına atacağı münferit imzası ile 500.000,00 TL'ye kadar (bu tutar dâhil) her türlü iş ve işlemde şirketi temsil ve ilzama yetkilidir.",
+    "page": 1
+  },
+  "rules": [
+    {
+      "scope": "general",
+      "threshold": 500000.0,
+      "mode": "SOLE",
+      "coSigners": [],
+      "evidence": {
+        "page": 1,
+        "quote": "Ali YILMAZ, şirket unvanı veya kaşesi altına atacağı münferit imzası ile 500.000,00 TL'ye kadar (bu tutar dâhil) her türlü iş ve işlemde şirketi temsil ve ilzama yetkilidir."
+      }
+    },
+    {
+      "scope": "general",
+      "threshold": null,
+      "mode": "JOINT",
+      "coSigners": [
+        "Ali Yılmaz",
+        "Ayşe Demir"
+      ],
+      "evidence": {
+        "page": 1,
+        "quote": "500.000,00 TL'yi aşan her türlü iş ve işlemde Ali YILMAZ ile Ayşe DEMİR'in müşterek imzası şarttır."
+      }
+    },
+    {
+      "scope": "credit",
+      "threshold": null,
+      "mode": "JOINT",
+      "coSigners": [
+        "Ali Yılmaz",
+        "Ayşe Demir"
+      ],
+      "evidence": {
+        "page": 1,
+        "quote": "Tutarına bakılmaksızın her türlü kredi sözleşmesi, kredi taahhütnamesi, teminat mektubu ve kefalet işleminde Ali YILMAZ ile Ayşe DEMİR'in müşterek imzası şarttır."
+      }
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "case": 4,
+  "title": "ABC Teknoloji — Case 1 ile aynı belge, sicilde yetki düşmüş",
+  "document": "data/documents/case1.md",
+  "extraction_fixture": "ai/tests/fixtures/case4.json",
+  "as_of": "2026-08-01",
+  "application": {
+    "company_name": "ABC Teknoloji Ltd. Şti.",
+    "tax_number": "1234567890",
+    "mersis": "0123456789000017",
+    "applicant_name": "Ali Yılmaz",
+    "applicant_tckn": "123******01",
+    "branch_code": "0341",
+    "identity_verified_at_branch": true
+  },
+  "registry": {
+    "0123456789000017": {
+      "name": "ABC Teknoloji Ltd. Şti.",
+      "status": "ACTIVE",
+      "reps": [
+        {"name": "Ali Yılmaz", "tckn": "123******01", "mode": "SOLE", "status": "REMOVED"},
+        {"name": "Ayşe Demir", "tckn": "456******23", "mode": "JOINT", "status": "ACTIVE"}
+      ]
+    }
+  },
+  "expected_verdict": "REGISTRY_CONFLICT",
+  "expected_checks": [
+    {"id": "company_name_match", "status": "green"},
+    {"id": "tax_number_match", "status": "green"},
+    {"id": "mersis_number_match", "status": "green"},
+    {"id": "applicant_in_document", "status": "green"},
+    {"id": "identity_match", "status": "green"},
+    {"id": "authority_mode", "status": "green"},
+    {"id": "registry_status", "status": "green"},
+    {"id": "registry_representative_match", "status": "red"},
+    {"id": "document_validity", "status": "green"}
+  ],
+  "notes": [
+    "case4.json, case1.json'ın bayt bayt aynısıdır — document_id dâhil. Belge aynı belgedir; kırmızı yalnızca sicilden gelir. check_fixtures.py bu eşitliği doğrular.",
+    "Ali'nin sicil durumunu ACTIVE'e çevirmek aynı belgeyi READY yapar. Bu geri alınabilirlik sahne hamlesidir (runbook beat 5 ve beat 10).",
+    "registry_status yeşildir: şirket faal. Kırmızı olan yalnızca temsilci kaydıdır — ikisini tek kontrole indirgemeyin.",
+    "Bu vaka asla kesilmez (PLAN kesme listesi)."
+  ]
+}

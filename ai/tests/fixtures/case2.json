@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "document_id": "doc_02",
+  "company": {
+    "name": "ABC Teknoloji Limited Şirketi",
+    "taxNumber": "1234567890",
+    "mersisNumber": "0123456789000017",
+    "legalNameNormalized": "abc teknoloji"
+  },
+  "notary": {
+    "name": "İstanbul 18. Noterliği",
+    "date": "2026-04-22",
+    "yevmiye": "11740"
+  },
+  "validUntil": "2028-04-22",
+  "representatives": [
+    {
+      "name": "Ali Yılmaz",
+      "nameNormalized": "ali yilmaz",
+      "nationalId": "123******01",
+      "title": "Müdür",
+      "mode": "JOINT",
+      "coSigners": [
+        "Ayşe Demir"
+      ],
+      "limits": null
+    },
+    {
+      "name": "Ayşe Demir",
+      "nameNormalized": "ayse demir",
+      "nationalId": "456******23",
+      "title": "Müdür",
+      "mode": "JOINT",
+      "coSigners": [
+        "Ali Yılmaz"
+      ],
+      "limits": null
+    }
+  ],
+  "fieldsNeedingReview": [],
+  "evidence": {
+    "authorityClause": "Yukarıda adları yazılı Ali YILMAZ ve Ayşe DEMİR, şirket unvanı veya kaşesi altına atacakları müşterek imzaları ile şirketi her türlü iş ve işlemde temsil ve ilzama yetkilidir.",
+    "page": 1
+  },
+  "rules": [
+    {
+      "scope": "general",
+      "threshold": null,
+      "mode": "JOINT",
+      "coSigners": [
+        "Ali Yılmaz",
+        "Ayşe Demir"
+      ],
+      "evidence": {
+        "page": 1,
+        "quote": "Yukarıda adları yazılı Ali YILMAZ ve Ayşe DEMİR, şirket unvanı veya kaşesi altına atacakları müşterek imzaları ile şirketi her türlü iş ve işlemde temsil ve ilzama yetkilidir."
+      }
+    }
+  ]
+}

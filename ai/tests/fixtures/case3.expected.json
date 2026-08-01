@@ -1,0 +1,43 @@
+{
+  "case": 3,
+  "title": "Delta Lojistik başvurusu — elde Zeta İnşaat sirküleri",
+  "document": "data/documents/case3.md",
+  "extraction_fixture": "ai/tests/fixtures/case3.json",
+  "as_of": "2026-08-01",
+  "application": {
+    "company_name": "Delta Lojistik A.Ş.",
+    "tax_number": "4567890128",
+    "mersis": "0456789012000011",
+    "applicant_name": "Mehmet Kaya",
+    "applicant_tckn": "321******54",
+    "branch_code": "0806",
+    "identity_verified_at_branch": true
+  },
+  "registry": {
+    "0456789012000011": {
+      "name": "Delta Lojistik A.Ş.",
+      "status": "ACTIVE",
+      "reps": [
+        {"name": "Mehmet Kaya", "tckn": "321******54", "mode": "SOLE", "status": "ACTIVE"}
+      ]
+    }
+  },
+  "expected_verdict": "MISMATCH",
+  "expected_checks": [
+    {"id": "company_name_match", "status": "red"},
+    {"id": "tax_number_match", "status": "red"},
+    {"id": "mersis_number_match", "status": "red"},
+    {"id": "applicant_in_document", "status": "red"},
+    {"id": "identity_match", "status": "red"},
+    {"id": "authority_mode", "status": "red"},
+    {"id": "registry_status", "status": "green"},
+    {"id": "registry_representative_match", "status": "green"},
+    {"id": "document_validity", "status": "green"}
+  ],
+  "notes": [
+    "Sicil temizdir: Mehmet Kaya kendi şirketinin gerçek yetkilisidir. Kırmızıların tamamı 'yanlış kağıt' kaynaklıdır — dokuz kontrolün birbirinden bağımsız olduğunu bu vaka kanıtlar.",
+    "applicant_in_document kırmızıdır, bulanık amber DEĞİL (PLAN Faz 4 · AI adım 2). Mehmet Kaya belgede hiç geçmiyor; fuzzy eşleşme burada devreye girmemelidir.",
+    "authority_mode kırmızıdır: başvuru sahibi belgede olmadığı için imza yetkisi türü tespit edilemez. Amber 'insan/eş imza gerekli' demektir, 'bilinmiyor' değil.",
+    "fieldsNeedingReview: ['specimens'] provenance bayrağıdır (tatbik imzası kutusu kırpık okunmuş). Karara etki etmez ve karşılaştırma bayrağı gibi sunulmamalıdır."
+  ]
+}

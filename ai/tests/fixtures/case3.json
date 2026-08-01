@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "document_id": "doc_03",
+  "company": {
+    "name": "Zeta İnşaat Sanayi ve Ticaret Anonim Şirketi",
+    "taxNumber": "9876543217",
+    "mersisNumber": "0987654321000023",
+    "legalNameNormalized": "zeta insaat"
+  },
+  "notary": {
+    "name": "Ankara 9. Noterliği",
+    "date": "2025-11-06",
+    "yevmiye": "20355"
+  },
+  "validUntil": "2027-11-06",
+  "representatives": [
+    {
+      "name": "Kemal Öz",
+      "nameNormalized": "kemal oz",
+      "nationalId": "789******45",
+      "title": "Yönetim Kurulu Üyesi",
+      "mode": "SOLE",
+      "coSigners": [],
+      "limits": null
+    }
+  ],
+  "fieldsNeedingReview": [
+    "specimens"
+  ],
+  "evidence": {
+    "authorityClause": "Kemal ÖZ, şirket unvanı veya kaşesi altına atacağı münferit imzası ile şirketi her türlü iş ve işlemde temsil ve ilzama yetkilidir.",
+    "page": 1
+  },
+  "rules": [
+    {
+      "scope": "general",
+      "threshold": null,
+      "mode": "SOLE",
+      "coSigners": [],
+      "evidence": {
+        "page": 1,
+        "quote": "Kemal ÖZ, şirket unvanı veya kaşesi altına atacağı münferit imzası ile şirketi her türlü iş ve işlemde temsil ve ilzama yetkilidir."
+      }
+    }
+  ]
+}

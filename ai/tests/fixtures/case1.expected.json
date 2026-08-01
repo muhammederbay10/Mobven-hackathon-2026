@@ -1,0 +1,44 @@
+{
+  "case": 1,
+  "title": "ABC Teknoloji — Ali Yılmaz münferiden",
+  "document": "data/documents/case1.md",
+  "extraction_fixture": "ai/tests/fixtures/case1.json",
+  "as_of": "2026-08-01",
+  "application": {
+    "company_name": "ABC Teknoloji Ltd. Şti.",
+    "tax_number": "1234567890",
+    "mersis": "0123456789000017",
+    "applicant_name": "Ali Yılmaz",
+    "applicant_tckn": "123******01",
+    "branch_code": "0341",
+    "identity_verified_at_branch": true
+  },
+  "registry": {
+    "0123456789000017": {
+      "name": "ABC Teknoloji Ltd. Şti.",
+      "status": "ACTIVE",
+      "reps": [
+        {"name": "Ali Yılmaz", "tckn": "123******01", "mode": "SOLE", "status": "ACTIVE"},
+        {"name": "Ayşe Demir", "tckn": "456******23", "mode": "JOINT", "status": "ACTIVE"}
+      ]
+    }
+  },
+  "expected_verdict": "READY",
+  "expected_checks": [
+    {"id": "company_name_match", "status": "green"},
+    {"id": "tax_number_match", "status": "green"},
+    {"id": "mersis_number_match", "status": "green"},
+    {"id": "applicant_in_document", "status": "green"},
+    {"id": "identity_match", "status": "green"},
+    {"id": "authority_mode", "status": "green"},
+    {"id": "registry_status", "status": "green"},
+    {"id": "registry_representative_match", "status": "green"},
+    {"id": "document_validity", "status": "green"}
+  ],
+  "notes": [
+    "Başvurudaki unvan 'Ltd. Şti.', belgedeki unvan 'Limited Şirketi' — company_name_match ancak strip_company_suffix() ile yeşile döner. Bu fark bilerek bırakıldı.",
+    "Belge soyadları büyük harfle basar (Ali YILMAZ); düz sözleşme normalize edilmiş görünen adı taşır (Ali Yılmaz). İ/ı dönüşümü normalize.py'nin işidir.",
+    "Ali münferiden ≤ 500.000 TL, üzeri Ayşe ile müşterek — bu nedenle mode SOLE, limits 500000, coSigners boş. Müşterek ilişki rules[] içinde yaşar.",
+    "Belgenin 4. maddesindeki gayrimenkul istisnası rules[] içinde YOKTUR: ExtractionRule (scope, threshold, mode, coSigners) 'kapsam dışı'yı ifade edemiyor. Sözleşme dondurulmadan önce karara bağlanmalı; şu an api/ tarafında seed rule olarak duruyor."
+  ]
+}

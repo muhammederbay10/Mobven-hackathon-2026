@@ -1,0 +1,43 @@
+{
+  "case": 2,
+  "title": "ABC Teknoloji — Ali Yılmaz + Ayşe Demir müştereken",
+  "document": "data/documents/case2.md",
+  "extraction_fixture": "ai/tests/fixtures/case2.json",
+  "as_of": "2026-08-01",
+  "application": {
+    "company_name": "ABC Teknoloji Ltd. Şti.",
+    "tax_number": "1234567890",
+    "mersis": "0123456789000017",
+    "applicant_name": "Ali Yılmaz",
+    "applicant_tckn": "123******01",
+    "branch_code": "0341",
+    "identity_verified_at_branch": true
+  },
+  "registry": {
+    "0123456789000017": {
+      "name": "ABC Teknoloji Ltd. Şti.",
+      "status": "ACTIVE",
+      "reps": [
+        {"name": "Ali Yılmaz", "tckn": "123******01", "mode": "JOINT", "status": "ACTIVE"},
+        {"name": "Ayşe Demir", "tckn": "456******23", "mode": "JOINT", "status": "ACTIVE"}
+      ]
+    }
+  },
+  "expected_verdict": "CO_SIGNER_REQUIRED",
+  "expected_checks": [
+    {"id": "company_name_match", "status": "green"},
+    {"id": "tax_number_match", "status": "green"},
+    {"id": "mersis_number_match", "status": "green"},
+    {"id": "applicant_in_document", "status": "green"},
+    {"id": "identity_match", "status": "green"},
+    {"id": "authority_mode", "status": "amber"},
+    {"id": "registry_status", "status": "green"},
+    {"id": "registry_representative_match", "status": "green"},
+    {"id": "document_validity", "status": "green"}
+  ],
+  "notes": [
+    "Tek amber authority_mode'dur ve gerekçe metni eksik imzacıyı adıyla söylemelidir: 'Ayşe Demir'. Ekrandaki satır budur.",
+    "Klasik çıkarım hatası: mode SOLE dönüp coSigners'ı yine de doldurmak. Bu fixture'da her iki yetkilinin de mode'u JOINT'tir ve coSigners karşılıklıdır.",
+    "Sicilde her iki kişi de ACTIVE; registry_representative_match yalnızca varlık + durum bakar, mode karşılaştırmaz — mode kıyası belgeye dayanan authority_mode'un işidir."
+  ]
+}
