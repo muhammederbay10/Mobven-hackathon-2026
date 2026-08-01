@@ -31,7 +31,7 @@ A sixth route may be added only if it replaces an existing one, and only before 
 
 | File | Role |
 |---|---|
-| `lib/types.ts` | hand-written mirror of the frozen contracts — what the app codes against |
+| `lib/types.ts` | AI-wire mirror of `docs/API_CONTRACT.md` plus bank-owned app contracts |
 | `lib/contracts.ts` | zod schemas for runtime validation, plus type-level drift guards |
 | `lib/contracts.test.ts` | offline contract tests over delivered fixtures |
 | `lib/api.ts` | the API layer — the only file allowed to call `fetch` |

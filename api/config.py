@@ -64,12 +64,16 @@ class Settings(BaseSettings):
     # connectivity; it never starts, stops or edits that service.
     ai_url: str = "http://localhost:8001"
     ai_mode: AIMode = AIMode.STUB
+    # Current public AI contract: /analyze exists; /extract is still pending.
+    # Flip only after the endpoint has been delivered and contract-tested.
+    ai_extract_available: bool = False
     extraction_cache: CacheMode = CacheMode.ON
     ai_timeout_seconds: float = 20.0
 
     data_dir: str = "../data"
     allowed_origins: str = "http://localhost:3000"
     max_upload_mb: int = 20
+    max_document_pages: int = 40
 
     # --- validation --------------------------------------------------------
 
@@ -90,11 +94,11 @@ class Settings(BaseSettings):
             raise ValueError("AI_TIMEOUT_SECONDS must be greater than zero.")
         return value
 
-    @field_validator("max_upload_mb")
+    @field_validator("max_upload_mb", "max_document_pages")
     @classmethod
-    def _positive_upload_limit(cls, value: int) -> int:
+    def _positive_integer_limit(cls, value: int) -> int:
         if value <= 0:
-            raise ValueError("MAX_UPLOAD_MB must be greater than zero.")
+            raise ValueError("The configured limit must be greater than zero.")
         return value
 
     # --- derived values ----------------------------------------------------

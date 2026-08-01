@@ -2,7 +2,7 @@
 
 FastAPI + SQLite. Owns persistence, orchestration, application state, approval, authority records, transactions, registry access, audit logs, and the extraction cache (plan section 1.3).
 
-It does **not** own extraction, prompts, or the nine-check comparison engine. Those live in `ai/`, behind `POST /extract` and `POST /analyze`, and belong to the AI engineer (GAP-02).
+It does **not** own extraction, prompts, or the nine-check comparison engine. Those belong to the AI engineer. `POST /analyze` is delivered; `POST /extract` is still pending in the current AI contract.
 
 ## Commands
 
@@ -29,12 +29,21 @@ python -m uvicorn api.main:app --reload --port 8000
 | GET | `/api/demo/cases` | case cards for the control panel |
 | POST | `/api/demo/load-case/{n}` | 201 `{application_id}`; `DEMO_MODE` guarded |
 | POST | `/api/demo/reset` | 200 `{ok:true}`; `DEMO_MODE` guarded |
+| POST | `/api/applications` | create and persist a branch application |
+| GET | `/api/applications/{id}` | aggregate branch state for refresh/restore |
+| POST | `/api/applications/{id}/document` | attested PDF/PNG/JPEG upload and page rendering |
+| GET | `/api/documents/{id}/page/{n}` | validated rendered PNG page |
 
-Applications, documents, analysis, decisions, authority and transactions are Phase 1 onwards.
+Analysis, decisions, authority and transactions remain later Phase 1/Phase 2 work. The AI schema
+now agrees with the full-stack mirrors, but live document analysis remains gated on delivery of
+AI `POST /extract`. Stub/replay integration can proceed independently.
 
 ## Configuration
 
 Copy `api/.env.example` to `api/.env`. `AI_MODE` accepts `stub`, `live` or `replay`; any other value must fail startup with a clear configuration error (plan section 4.3). Demo mutation endpoints require `DEMO_MODE=true`.
+
+Uploads are limited by `MAX_UPLOAD_MB` and `MAX_DOCUMENT_PAGES`. MIME is determined from file
+bytes rather than trusting the browser's filename or content-type header.
 
 ## Layout
 
@@ -43,7 +52,7 @@ Copy `api/.env.example` to `api/.env`. `AI_MODE` accepts `stub`, `live` or `repl
 | `main.py` | app factory, CORS allowlist, correlation IDs, error envelope, `/health`, `/ready` |
 | `config.py` | validated settings; unknown `AI_MODE` fails startup; path containment |
 | `db.py`, `models.py` | SQLModel tables, enums, UTC timestamps, session lifecycle |
-| `schemas.py` | **frozen** shared contracts — Python mirror of `ai/schema.py` |
+| `schemas.py` | bank contracts plus the strict Python mirror of `docs/API_CONTRACT.md` |
 | `errors.py` | `ApiError` and the standard error envelope |
 | `routers/` | HTTP surface only: validate, delegate, serialize |
 | `services/` | every business rule lives here |
@@ -64,6 +73,8 @@ Copy `api/.env.example` to `api/.env`. `AI_MODE` accepts `stub`, `live` or `repl
 
 ## Working with the AI service
 
-Integration is confined to `services/ai_client.py` (typed stub/live/replay client, timeout translation, backend-owned SHA-256 extraction cache) plus the mirrored schemas and fixtures.
+Integration is confined to `services/ai_client.py` (typed HTTP boundary, bank-registry projection, timeout translation, backend-owned SHA-256 extraction cache) plus the mirrored schemas and fixtures. The AI extraction payload is flat/camelCase; bank-owned public APIs remain snake_case.
+
+`AI_EXTRACT_AVAILABLE=false` is the default because `/extract` has not been delivered. In live mode, `/ready` reports `ai_extract` as blocking until that flag is explicitly enabled after contract verification.
 
 If a delivered response violates the contract, record the request/response defect and hand it to the AI engineer. Do not patch anything under `ai/`, and do not special-case a verdict in backend code to work around it (plan sections 8.8 and 18.11).

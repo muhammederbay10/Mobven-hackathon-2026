@@ -17,9 +17,9 @@ import { CHECK_STATUS_LABEL, CHECK_STATUS_SYMBOL } from "@/lib/format";
 import type { CheckStatus } from "@/lib/types";
 
 const TONE: Record<CheckStatus, { icon: string; text: string }> = {
-  GREEN: { icon: "bg-success-soft text-success", text: "text-success" },
-  AMBER: { icon: "bg-warning-soft text-warning", text: "text-warning" },
-  RED: { icon: "bg-danger-soft text-danger", text: "text-danger" },
+  green: { icon: "bg-success-soft text-success", text: "text-success" },
+  amber: { icon: "bg-warning-soft text-warning", text: "text-warning" },
+  red: { icon: "bg-danger-soft text-danger", text: "text-danger" },
 };
 
 /** A small round status glyph. Always accompanied by text from its caller. */
@@ -69,9 +69,9 @@ export function VerdictBanner({
   detail?: ReactNode;
 }) {
   const tone =
-    status === "GREEN"
+    status === "green"
       ? "bg-success-soft text-success"
-      : status === "AMBER"
+      : status === "amber"
         ? "bg-warning-soft text-warning"
         : "bg-danger-soft text-danger";
   return (

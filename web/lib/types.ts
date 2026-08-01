@@ -52,7 +52,7 @@ export type Confidence = "HIGH" | "MEDIUM" | "LOW";
 export type ReviewSeverity = "INFO" | "WARNING" | "ERROR";
 export type AuthorityMode = "SOLE" | "JOINT" | "LIMITED" | "UNKNOWN";
 export type TransactionSubject = "GENERAL" | "CREDIT" | "REAL_ESTATE";
-export type CheckStatus = "GREEN" | "AMBER" | "RED";
+export type CheckStatus = "green" | "amber" | "red";
 export type OnboardingVerdict =
   | "READY"
   | "CO_SIGNER_REQUIRED"
@@ -124,7 +124,7 @@ export type ReviewFlag = {
 /* 4. Extraction result — plan section 5.2                                    */
 /* -------------------------------------------------------------------------- */
 
-export type AuthorityRule = {
+export type CanonicalAuthorityRule = {
   id: string;
   subject: TransactionSubject;
   currency: "TRY";
@@ -141,7 +141,7 @@ export type AuthorityRule = {
   evidence: EvidenceRef[];
 };
 
-export type Representative = {
+export type CanonicalRepresentative = {
   /** stable within this extraction, e.g. rep-1 */
   source_id: string;
   name: Fact<string>;
@@ -154,37 +154,96 @@ export type Representative = {
   valid_until: Fact<string>;
 };
 
-export type ExtractionCompany = {
+export type CanonicalExtractionCompany = {
   legal_name: Fact<string>;
   tax_number: Fact<string>;
   mersis: Fact<string>;
   trade_registry_number: Fact<string>;
 };
 
-export type ExtractionNotary = {
+export type CanonicalExtractionNotary = {
   name: Fact<string>;
   date: Fact<string>;
   journal_number: Fact<string>;
 };
 
-export type ExtractionAnnex = {
+export type CanonicalExtractionAnnex = {
   type: string;
   pages: number[];
   parsed: boolean;
 };
 
-export type ExtractionResult = {
+export type CanonicalExtractionResult = {
   schema_version: "1.0";
   engine: string;
   document_sha256: string;
   page_count: number;
+  company: CanonicalExtractionCompany;
+  notary: CanonicalExtractionNotary;
+  document_valid_until: Fact<string>;
+  representatives: CanonicalRepresentative[];
+  rules: CanonicalAuthorityRule[];
+  annexes: CanonicalExtractionAnnex[];
+  fields_needing_review: ReviewFlag[];
+};
+
+/** Public flat wire projection from docs/API_CONTRACT.md. */
+export type SourceEvidence = {
+  page: number;
+  quote: string;
+};
+
+export type AuthorityRule = {
+  scope: string;
+  /** integer kuruş; null means unbounded/not applicable */
+  threshold: number | null;
+  mode: "SOLE" | "JOINT" | null;
+  /** representative IDs such as rep-1; never display names */
+  coSigners: string[];
+  blocked: boolean;
+  evidence: SourceEvidence;
+};
+
+export type Representative = {
+  /** stable document-order ID, e.g. rep-1 */
+  id: string;
+  name: string;
+  nameNormalized: string;
+  nationalId: string | null;
+  title: string | null;
+  mode: "SOLE" | "JOINT";
+  /** human-readable names for display */
+  coSigners: string[];
+  /** integer kuruş */
+  limits: number | null;
+};
+
+export type ExtractionCompany = {
+  name: string;
+  taxNumber: string | null;
+  mersisNumber: string | null;
+  legalNameNormalized: string;
+};
+
+export type ExtractionNotary = {
+  name: string | null;
+  date: string | null;
+  yevmiye: string | null;
+};
+
+export type ExtractionResult = {
+  schema_version: "1.0";
+  document_id: string;
   company: ExtractionCompany;
   notary: ExtractionNotary;
-  document_valid_until: Fact<string>;
+  validUntil: string | null;
   representatives: Representative[];
+  fieldsNeedingReview: string[];
+  evidence: {
+    authorityClause: string;
+    page: number;
+  };
   rules: AuthorityRule[];
-  annexes: ExtractionAnnex[];
-  fields_needing_review: ReviewFlag[];
 };
 
 /* -------------------------------------------------------------------------- */
@@ -199,35 +258,27 @@ export const CHECK_IDS = [
   "applicant_in_document",
   "identity_match",
   "authority_mode",
-  "registry_company_status",
-  "registry_representative_status",
+  "registry_status",
+  "registry_representative_match",
   "document_validity",
 ] as const;
 
 export type CheckId = (typeof CHECK_IDS)[number];
 
-export type CheckEvidenceItem = {
-  label: string;
-  value: string;
-  document_evidence?: EvidenceRef[] | null;
-};
+export type CheckEvidence = Record<string, string | number | boolean | null>;
 
 export type CheckResult = {
   id: string;
   status: CheckStatus;
   title: string;
   reason: string;
-  source_kind: CheckSourceKind;
-  evidence: CheckEvidenceItem[];
+  evidence: CheckEvidence;
 };
 
 export type CheckReport = {
-  schema_version: "1.0";
   /** exactly nine, in CHECK_IDS order */
   checks: CheckResult[];
   verdict: OnboardingVerdict;
-  blocking_check_ids: string[];
-  generated_at: string;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -366,16 +417,16 @@ export type ErrorResponse = {
  * never an array position or display name.
  */
 export const CORRECTION_PATH_ALLOWLIST = [
-  "company.legal_name.value",
-  "company.tax_number.value",
-  "company.mersis.value",
-  "representatives[<source_id>].name.value",
-  "representatives[<source_id>].authority_mode.value",
-  "document_valid_until.value",
+  "company.name",
+  "company.taxNumber",
+  "company.mersisNumber",
+  "representatives[<source_id>].name",
+  "representatives[<source_id>].mode",
+  "validUntil",
 ] as const;
 
 export const CORRECTION_PATH_PATTERN =
-  /^(company\.(legal_name|tax_number|mersis)\.value|representatives\[[a-z][a-z0-9_-]{0,63}\]\.(name|authority_mode)\.value|document_valid_until\.value)$/;
+  /^(company\.(name|taxNumber|mersisNumber)|representatives\[[a-z][a-z0-9_-]{0,63}\]\.(name|mode)|validUntil)$/;
 
 export type CreateApplicationRequest = {
   company_name: string;

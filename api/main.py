@@ -25,7 +25,7 @@ from sqlalchemy import text
 from api.config import AIMode, ConfigurationError, Settings, get_settings
 from api.db import get_engine, init_db
 from api.errors import ApiError
-from api.routers import demo
+from api.routers import applications, demo, documents
 from api.schemas import ErrorCode
 from api.services import ai_client, registry_service
 from api.services.audit_service import new_correlation_id, redact
@@ -69,6 +69,8 @@ def create_app() -> FastAPI:
     _register_error_handlers(app)
     _register_infrastructure_routes(app)
     app.include_router(demo.router)
+    app.include_router(applications.router)
+    app.include_router(documents.router)
     return app
 
 
@@ -236,6 +238,8 @@ def _register_infrastructure_routes(app: FastAPI) -> None:
         ]
         if settings.ai_mode is AIMode.LIVE and checks["ai"]["reachable"] is False:
             blocking.append("ai")
+        if settings.ai_mode is AIMode.LIVE and not settings.ai_extract_available:
+            blocking.append("ai_extract")
 
         ready_now = not blocking
         return JSONResponse(

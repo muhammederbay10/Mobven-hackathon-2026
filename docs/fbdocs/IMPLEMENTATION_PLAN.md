@@ -2,7 +2,9 @@
 
 **Canonical product source:** `docs/fbdocs/PROJECT.md`
 
-**Reference workflow experience:** `docs/fbdocs/index.html`
+**Authoritative AI HTTP contract:** `docs/API_CONTRACT.md`
+
+**Reference component/presentation experience:** `docs/fbdocs/index.html`
 
 **Reference visual design:** `docs/fbdocs/design/nexai-dashboard-reference.png`
 
@@ -11,7 +13,25 @@
 **Implementation ownership:** full-stack track only — `web/`, `api/`, data/demo tooling, and integration with the externally owned AI service.
 
 **Purpose of this document:** turn the full-stack product plan into an executable specification that a coding agent can implement without inventing architecture, contracts, state transitions, or demo behavior.
-**Precedence:** when this plan and `PROJECT.md` differ on product intent, `PROJECT.md` wins. When `PROJECT.md` is silent on implementation detail, this plan is authoritative. `DESIGN_SYSTEM.md` and its reference PNG are authoritative for the global shell, typography, colors, sidebar, top bar, cards, controls, spacing, and responsive behavior. `index.html` remains authoritative for YetkiCheck-specific workflow presentation, document/phone treatments, and semantic status behavior. No visual reference is authoritative for security, persistence, or business logic.
+**Precedence:** when this plan and `PROJECT.md` differ on product intent, `PROJECT.md` wins. `docs/API_CONTRACT.md` wins for every AI-service request/response field, enum, alias, endpoint status, and fixture shape. This plan remains authoritative for bank architecture, persistence, state transitions, production flow, and phases. `DESIGN_SYSTEM.md` and its reference PNG are authoritative for the visual system. `index.html` is a component and presentation reference only; it does not define the production workflow, routing, persistence, security, or business logic.
+
+## Contract alignment note — 2026-08-01
+
+The AI engineer delivered the updated flat `schema_version: "1.0"` contract after initially following the older `PLAN.md`. The full-stack implementation now adapts to that delivered wire format instead of requiring the AI service to adopt this plan's former rich snake_case projection.
+
+The effective changes are:
+
+- flat/camelCase `ExtractionResult` on the AI boundary;
+- strict integer-kuruş `limits` and `threshold`;
+- stable `representatives[].id` values and ID-based `rules[].coSigners`;
+- explicit `blocked` real-estate rules;
+- lowercase `green | amber | red` check statuses;
+- check IDs `registry_status` and `registry_representative_match`;
+- minimal `{verdict, checks}` `CheckReport`;
+- MERSİS-keyed registry input and optional top-level `as_of` for `/analyze`;
+- `/health` and `/analyze` are implemented; `/extract` remains pending.
+
+The bank-owned registry envelope, public bank API, database metadata (`engine`, document SHA-256, timestamps), state machines, and audit/error formats do not change. The bank API projects its records into the AI wire shape only inside `api/services/ai_client.py`.
 
 ---
 
@@ -96,16 +116,17 @@ The ownership boundary is:
 
 The bank backend never re-derives or recomputes onboarding checks. It passes the sources to the AI service, validates the response contract, persists the returned `CheckReport` verbatim, and serves it.
 
-### `GAP-03` — What are the exact two AI endpoints? **Closed**
+### `GAP-03` — What is the current AI endpoint surface? **Closed**
 
 **Decision:**
 
 ```text
-POST /extract    multipart: file, document_id              -> ExtractionResult
-POST /analyze    JSON: {extraction, application, registry} -> CheckReport
+GET  /health                                               -> health metadata       (implemented)
+POST /analyze    JSON: {extraction, application, registry, as_of?} -> CheckReport   (implemented)
+POST /extract    multipart: file, document_id              -> ExtractionResult     (pending)
 ```
 
-`GET /health` is an infrastructure endpoint and does not count as one of the two business endpoints. The API loads registry data and passes it into `/analyze`. The AI service remains stateless and file-system-free: it never reads `registry.json`, application rows, or uploaded files by path.
+The API loads its bank-owned registry envelope and projects it to the MERSİS-keyed AI request inside `api/services/ai_client.py`. The AI service remains stateless and file-system-free: it never reads `registry.json`, application rows, or uploaded files by path. Live readiness remains blocked on `ai_extract` until `/extract` is delivered; stub/replay modes may proceed.
 
 ### `GAP-05` — What happens after case 2 reports “second signature required”? **Closed**
 
@@ -200,7 +221,7 @@ Cached cases must be described as cached real results, never as live calls. Do n
 
 No floating-point money is permitted. Format only at the UI edge with `Intl.NumberFormat('tr-TR', {style:'currency', currency:'TRY'})`.
 
-When extracting Turkish amounts, dots are thousands separators and commas are decimal separators: `1.200.000,50` becomes `120000050` minor units. If conversion is not confident, return `null` and add the field to `fields_needing_review`; never guess.
+When extracting Turkish amounts, dots are thousands separators and commas are decimal separators: `1.200.000,50` becomes `120000050` minor units. If conversion is not confident, return `null` and add the field path to `fieldsNeedingReview`; never guess.
 
 ### `GAP-13` — Should registry mutation automatically suspend stored authority records? **Closed**
 
@@ -414,7 +435,7 @@ Command names are part of the developer contract. An agent may add narrower comm
 
 The AI engineer's definitions in `ai/schema.py` are the source contract delivered to this track. `api/schemas.py` and `web/lib/types.ts` must mirror its JSON. Full-stack agents never edit `ai/schema.py`; contract changes are coordinated with the AI engineer, who updates AI-owned files before the backend/frontend mirrors are changed.
 
-## 5.1 Common primitives
+## 5.1 Optional bank-canonical primitives (not AI wire)
 
 ```ts
 type Confidence = "HIGH" | "MEDIUM" | "LOW";
@@ -440,74 +461,61 @@ type ReviewFlag = {
 };
 ```
 
-All document-derived legal facts must have at least one evidence item unless their value is `null`. Unknown or unreadable content must be `null` plus a review flag; the model must not guess.
+These rich primitives remain available for a future internal bank projection, but they are not required from the current AI HTTP service. The public extraction wire below uses flat values, `fieldsNeedingReview: string[]`, a top-level authority-clause evidence object, and per-rule evidence. Unknown or unreadable values are `null` and their field paths appear in `fieldsNeedingReview`; the model must not guess.
 
 ## 5.2 Extraction result
 
 ```ts
-type AuthorityMode = "SOLE" | "JOINT" | "LIMITED" | "UNKNOWN";
-type TransactionSubject = "GENERAL" | "CREDIT" | "REAL_ESTATE";
-
 type AuthorityRule = {
-  id: string;
-  subject: TransactionSubject;
-  currency: "TRY";
-  min_amount_minor: number | null; // inclusive integer kuruş
-  max_amount_minor: number | null; // inclusive; null means unbounded
-  required_signers: string[];   // representative source_ids
-  minimum_signature_count: number;
-  allowed: boolean;
-  valid_from: string | null;
-  valid_until: string | null;
-  evidence: EvidenceRef[];
+  scope: string;                // e.g. general, credit, real_estate
+  threshold: number | null;     // strict integer kuruş
+  mode: "SOLE" | "JOINT" | null;
+  coSigners: string[];          // representative IDs, e.g. rep-1
+  blocked: boolean;
+  evidence: {page: number; quote: string};
 };
 
 type Representative = {
-  source_id: string;            // stable within this extraction, e.g. rep-1
-  name: Fact<string>;
-  tckn_masked: Fact<string>;
-  title: Fact<string>;
-  degree: Fact<string>;
-  authority_mode: Fact<AuthorityMode>;
-  joint_with_source_ids: string[];
-  valid_from: Fact<string>;
-  valid_until: Fact<string>;
+  id: string;                   // stable document-order ID, e.g. rep-1
+  name: string;                 // printed value
+  nameNormalized: string;       // derived by AI Turkish normalization
+  nationalId: string | null;    // masked only
+  title: string | null;
+  mode: "SOLE" | "JOINT";
+  coSigners: string[];          // display names, deliberately not IDs
+  limits: number | null;        // strict integer kuruş
 };
 
 type ExtractionResult = {
   schema_version: "1.0";
-  engine: string;
-  document_sha256: string;
-  page_count: number;
+  document_id: string;
   company: {
-    legal_name: Fact<string>;
-    tax_number: Fact<string>;
-    mersis: Fact<string>;
-    trade_registry_number: Fact<string>;
+    name: string;
+    taxNumber: string | null;
+    mersisNumber: string | null;
+    legalNameNormalized: string;
   };
   notary: {
-    name: Fact<string>;
-    date: Fact<string>;
-    journal_number: Fact<string>;
+    name: string | null;
+    date: string | null;
+    yevmiye: string | null;
   };
-  document_valid_until: Fact<string>;
+  validUntil: string | null;
   representatives: Representative[];
+  fieldsNeedingReview: string[];
+  evidence: {authorityClause: string; page: number};
   rules: AuthorityRule[];
-  annexes: Array<{
-    type: string;
-    pages: number[];
-    parsed: boolean;
-  }>;
-  fields_needing_review: ReviewFlag[];
 };
 ```
+
+`representatives[].coSigners` contains human-readable names for reasons. `rules[].coSigners` contains stable representative IDs for machine enforcement. A blocked rule requires `mode: null` and an empty `coSigners` list. Every rule ID reference must resolve in the same extraction.
 
 ## 5.3 Onboarding analysis request and result
 
 The analysis service receives four sources: extraction, application, verified branch identity, and current registry record.
 
 ```ts
-type CheckStatus = "GREEN" | "AMBER" | "RED";
+type CheckStatus = "green" | "amber" | "red";
 type OnboardingVerdict =
   | "READY"
   | "CO_SIGNER_REQUIRED"
@@ -519,22 +527,16 @@ type CheckResult = {
   status: CheckStatus;
   title: string;
   reason: string;
-  source_kind: "APPLICATION" | "IDENTITY" | "DOCUMENT" | "REGISTRY";
-  evidence: Array<{
-    label: string;
-    value: string;
-    document_evidence?: EvidenceRef[];
-  }>;
+  evidence: Record<string, string | number | boolean | null>;
 };
 
 type CheckReport = {
-  schema_version: "1.0";
   verdict: OnboardingVerdict;
   checks: CheckResult[];         // exactly nine, in the defined order
-  blocking_check_ids: string[];
-  generated_at: string;
 };
 ```
+
+The `/analyze` request is `{extraction, application, registry, as_of?}`. The application field sent to AI is `applicant_tckn`; the bank public API/database field remains `applicant_tckn_masked`. The AI registry is keyed by MERSİS and shaped as `{name,status,reps:[{name,tckn,mode,status}]}`. Unknown fields inside application/registry inputs are tolerated; AI responses are strict.
 
 ## 5.4 Registry record
 
@@ -641,11 +643,11 @@ Checks are returned in this exact order:
 | 2 | `tax_number_match` | Ten normalized digits match exactly. Missing or malformed values are red. |
 | 3 | `mersis_number_match` | Sixteen normalized digits match exactly. Missing or malformed values are red. |
 | 4 | `applicant_in_document` | Applicant name resolves to exactly one extracted representative. Zero or multiple matches are red. |
-| 5 | `identity_match` | Branch-verified masked TCKN and normalized name match the selected representative. Unavailable TCKN with a unique name is amber; contradiction is red. |
+| 5 | `identity_match` | Branch-verified masked TCKN and normalized name match the selected representative. Missing or contradictory identity evidence is red. |
 | 6 | `authority_mode` | Green when the applicant can act alone for the onboarding action; amber when an active co-signer is required; red when authority is absent or out of scope. |
-| 7 | `registry_company_status` | Registry company exists, matches the MERSİS number, and is active. Missing or inactive is red. |
-| 8 | `registry_representative_status` | Applicant exists as an active current registry representative. Removed or missing is red. |
-| 9 | `document_validity` | Document and applicable representative/rule are valid on the analysis date. Unknown is amber; expired is red. |
+| 7 | `registry_status` | Registry company exists, matches the MERSİS number, and is active. Missing or inactive is red. |
+| 8 | `registry_representative_match` | Applicant exists as an active current registry representative. Removed or missing is red. |
+| 9 | `document_validity` | Document is valid on `as_of` (or the AI service's current date when omitted). Unknown or expired is red. |
 
 `ai/normalize.py::tr_normalize()` is the primary join mechanism for names across document, application, and registry. Masked TCKN corroborates the selected normalized-name match but is not itself a join key. Normalization may handle Turkish casing, whitespace, punctuation, and known legal suffixes. It must never use broad fuzzy matching for VKN, MERSİS, masked TCKN, or monetary values. Golden normalization fixtures must also be used by any backend-side registry-name join so behavior cannot drift.
 
@@ -802,16 +804,17 @@ The update body is `{status:"ACTIVE"|"REMOVED"}`. Writes use temp-file plus atom
 
 ## 8.6 AI service contract
 
-The AI engineer owns both business endpoints. `ai/compare.py` implements the nine checks behind `/analyze`.
+The AI engineer owns the service. `ai/compare.py` implements the nine checks behind `/analyze`; the extraction endpoint remains an external delivery dependency.
 
 The private AI endpoints are:
 
 | Method | Path | Input | Output |
 |---|---|---|---|
-| POST | `/extract` | Multipart `file` and `document_id` | `ExtractionResult` |
-| POST | `/analyze` | JSON `{extraction, application, registry}` | `CheckReport` |
+| GET | `/health` | none | `{status,engine,schema_version}` — implemented |
+| POST | `/analyze` | JSON `{extraction,application,registry,as_of?}` | `CheckReport` — implemented |
+| POST | `/extract` | Multipart `file` and `document_id` | `ExtractionResult` — pending |
 
-`/analyze` is deterministic code. It must not ask a language model to choose the verdict. The API passes the current registry snapshot in the request. The AI service never reads registry/application files or database rows and never writes a cache. Both endpoints validate `schema_version` and return the standard error shape. `GET /health` is infrastructure only.
+`/analyze` is deterministic code. It must not ask a language model to choose the verdict. The API projects the current bank registry into the AI's keyed request. The AI service never reads registry/application files or database rows and never writes a cache. A malformed `/analyze` body deliberately returns HTTP 200 with `MISMATCH` and all nine checks red; consumers must inspect `verdict`, not treat every 200 as a successful business result. `GET /health` is infrastructure only.
 
 ## 8.7 Exact mutation request bodies
 
@@ -876,12 +879,12 @@ Mutation validation rules:
 The only accepted correction paths are:
 
 ```text
-company.legal_name.value
-company.tax_number.value
-company.mersis.value
-representatives[<source_id>].name.value
-representatives[<source_id>].authority_mode.value
-document_valid_until.value
+company.name
+company.taxNumber
+company.mersisNumber
+representatives[<source_id>].name
+representatives[<source_id>].mode
+validUntil
 ```
 
 `<source_id>` resolves against the immutable representative source ID, never an array position or display name.
@@ -890,13 +893,13 @@ document_valid_until.value
 
 This track does not implement the extractor, prompts, comparison engine, or AI service. The AI engineer delivers and operates them. The following behavior is an external contract that backend/frontend integration must validate:
 
-1. `/extract` accepts the agreed multipart fields and returns `ExtractionResult`.
+1. `/extract` is still pending; live readiness must remain blocked until it accepts the agreed multipart fields and returns `ExtractionResult`.
 2. The delivered response uses verbatim evidence, `null` for unreadable values, distinct sole/joint modes, integer-kuruş limits, and stable representative source IDs.
 3. Every representative reference resolves or remains visibly flagged; it is never silently dropped.
-4. Evidence page numbers exist and non-null legal facts carry non-empty quotes.
+4. Top-level authority-clause and per-rule evidence carry positive page numbers and non-empty verbatim quotes.
 5. Turkish monetary text such as `1.200.000,50` is returned as `120000050` minor units; uncertain conversion is `null` plus a review flag.
 6. `/analyze` accepts extraction, application, and registry JSON and returns the deterministic nine-check `CheckReport`.
-7. The service reads no backend file/database/cache and returns controlled contract errors.
+7. The service reads no backend file/database/cache; malformed `/analyze` input degrades to a visible all-red report.
 
 The bank API caches validated `/extract` responses by `(document_sha256, schema_version, engine)`. The deterministic `/analyze` endpoint applies section 6 to the extraction, application, and registry payloads supplied by the API. Extraction confidence may create review flags but may not directly change verdict precedence outside the defined check rules.
 
@@ -1208,7 +1211,7 @@ Before the end of H1, both engineers confirm the closed decisions in section 1.5
 6. Implement analysis orchestration:
    - verify state and document presence;
    - transition to `ANALYZING`;
-   - call AI `POST /extract` with file bytes and document ID;
+   - obtain a validated extraction through the configured mode: committed fixture in stub/replay, AI `POST /extract` in live mode only after that endpoint is delivered;
    - load the current registry snapshot and call AI `POST /analyze` with extraction, application, and registry;
    - validate and persist raw payloads;
    - transition to `ANALYZED` or `ANALYSIS_FAILED`;
@@ -1220,7 +1223,7 @@ Before the end of H1, both engineers confirm the closed decisions in section 1.5
 ### External AI contract checks — not implementation steps
 
 1. Validate the delivered extraction/report fixtures against backend schemas.
-2. Confirm the documented `/extract`, `/analyze`, and `/health` request/response examples are sufficient for the typed client.
+2. Confirm `/health` and `/analyze` against the documented examples; keep `/extract` marked pending and live readiness blocked until delivery.
 3. Record any mismatch for the AI engineer; do not modify `ai/compare.py`, AI schemas, prompts, or endpoint code.
 
 ### Frontend steps
@@ -1337,7 +1340,7 @@ Before the end of H1, both engineers confirm the closed decisions in section 1.5
 
 ### External AI delivery gate — not implemented by this track
 
-1. Confirm with the AI engineer that `/health`, `/extract`, and `/analyze` are available at `AI_URL`.
+1. Confirm `/health` and `/analyze`, then separately verify that `/extract` has been delivered before setting `AI_EXTRACT_AVAILABLE=true`.
 2. Validate delivered live responses against backend schemas and golden fixtures.
 3. File contract/output defects with the AI engineer. Full-stack agents do not edit AI preprocessing, model calls, prompts, retries, normalization, comparison, or service code.
 
@@ -1386,7 +1389,7 @@ Before the end of H1, both engineers confirm the closed decisions in section 1.5
 
 ### Backend steps
 
-1. Validate and persist `fields_needing_review` and anomaly codes for all cases.
+1. Validate and persist `fieldsNeedingReview` paths for all cases.
 2. Finish one-call demo reset for rows, runtime registry, and demo uploads.
 3. Make case loading deterministic in any order.
 4. Return controlled conflicts for analyze-without-document, analyze-in-wrong-state, and stale correction.
@@ -1628,7 +1631,7 @@ The following task cards refine the phases above. Each task is small enough for 
 ### `P1-03` Analysis orchestration
 
 - **Dependencies:** P1-01, P1-02
-- **Deliverables:** `/extract` call, current-registry snapshot, `/analyze` call, verbatim persistence, audit, idempotency, and concurrency guard.
+- **Deliverables:** mode-selected extraction (fixture/replay now, live `/extract` after delivery), current-registry projection, `/analyze` call, verbatim persistence, audit, idempotency, and concurrency guard.
 - **Acceptance:** the API never recomputes checks; two identical sequential calls create one extraction/report; concurrent calls cannot duplicate data.
 
 ### `P1-04` Frontend shell and control panel
@@ -1673,7 +1676,7 @@ The following task cards refine the phases above. Each task is small enough for 
 
 ### External AI delivery gate — not a coding task for this track
 
-- AI engineer provides a running `/health`, `/extract`, and `/analyze` service plus the frozen schema/fixtures.
+- AI engineer has provided `/health`, `/analyze`, and the frozen schema/fixtures; `/extract` remains the explicit gate for live Phase 3 extraction.
 - Full-stack agents validate the contract and report defects without editing or operating `ai/`.
 
 ### `P3-01` Live AI integration hardening

@@ -22,8 +22,8 @@ The document hash is what makes case 4 reuse case 1's clean document for free;
 ``schema_version`` and ``engine`` are in the key so a contract bump or a model
 change can never serve a stale payload shaped for the previous one.
 
-Status: Phase 0 backend step 7 defines the modes and the cache. The transport
-for `/extract` and `/analyze` is task `P1-01`.
+Status: `/analyze` transport and the flat-contract adapter are implemented.
+`/extract` remains guarded by `AI_EXTRACT_AVAILABLE` until external delivery.
 """
 
 from __future__ import annotations
@@ -33,23 +33,31 @@ import re
 from pathlib import Path
 from typing import Protocol
 
+import httpx
 from pydantic import ValidationError
 
 from api.config import AIMode, CacheMode, Settings, get_settings, resolve_under
 from api.errors import ApiError
 from api.schemas import (
     SCHEMA_VERSION,
+    AIHealthResponse,
+    AnalyzeRegistryCompany,
+    AnalyzeRegistryRepresentative,
     AnalyzeRequest,
+    ApplicationContext,
     CheckReport,
     ErrorCode,
     ExtractionResult,
+    Registry,
 )
 
 __all__ = [
     "AIMode",
     "CacheMode",
     "AIServiceClient",
+    "LiveAIServiceClient",
     "ExtractionCache",
+    "build_analyze_request",
     "cache_key",
     "ai_contract_error",
     "ai_timeout_error",
@@ -114,16 +122,27 @@ class ExtractionCache:
         except (json.JSONDecodeError, ValidationError):
             return None
 
-    def put(self, extraction: ExtractionResult) -> Path | None:
+    def put(
+        self,
+        extraction: ExtractionResult,
+        *,
+        document_sha256: str,
+        engine: str,
+    ) -> Path | None:
         """Store a validated extraction. Returns the written path, or None if off."""
         if not self.enabled:
             return None
         path = self.path_for(
-            cache_key(extraction.document_sha256, extraction.schema_version, extraction.engine)
+            cache_key(document_sha256, extraction.schema_version, engine)
         )
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
-            json.dumps(extraction.model_dump(mode="json"), ensure_ascii=False, indent=2) + "\n",
+            json.dumps(
+                extraction.model_dump(mode="json", by_alias=True),
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
             encoding="utf-8",
         )
         return path
@@ -194,12 +213,11 @@ def ai_contract_error(detail: str) -> ApiError:
 
 
 class AIServiceClient(Protocol):
-    """The two business endpoints, plus infrastructure health (GAP-03).
+    """AI service boundary plus infrastructure health.
 
-    ``GET /health`` is infrastructure and does not count as one of the two
-    business endpoints. The API loads registry data and passes it into
-    ``/analyze``; the AI service never reads ``registry.json``, application rows
-    or uploaded files by path.
+    ``POST /analyze`` is delivered. ``POST /extract`` remains in the interface
+    because the bank orchestration will need it, but current readiness reports
+    it as unavailable until the AI engineer delivers it.
     """
 
     async def health(self) -> bool: ...
@@ -207,6 +225,130 @@ class AIServiceClient(Protocol):
     async def extract(self, *, file_bytes: bytes, filename: str, document_id: int) -> ExtractionResult: ...
 
     async def analyze(self, request: AnalyzeRequest) -> CheckReport: ...
+
+
+class LiveAIServiceClient:
+    """Strict HTTP consumer for the externally owned AI process."""
+
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        *,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        self._settings = settings or get_settings()
+        self._transport = transport
+
+    async def _request(self, method: str, path: str, **kwargs: object) -> httpx.Response:
+        try:
+            async with httpx.AsyncClient(
+                base_url=self._settings.ai_url.rstrip("/"),
+                timeout=self._settings.ai_timeout_seconds,
+                transport=self._transport,
+            ) as client:
+                return await client.request(method, path, **kwargs)
+        except httpx.TimeoutException as exc:
+            raise ai_timeout_error(self._settings.ai_timeout_seconds) from exc
+        except httpx.RequestError as exc:
+            raise ai_unavailable_error() from exc
+
+    async def health(self) -> bool:
+        try:
+            response = await self._request("GET", "/health")
+            if response.status_code != 200:
+                return False
+            AIHealthResponse.model_validate(response.json())
+            return True
+        except (ApiError, ValueError, ValidationError):
+            return False
+
+    async def extract(
+        self,
+        *,
+        file_bytes: bytes,
+        filename: str,
+        document_id: int,
+    ) -> ExtractionResult:
+        if not self._settings.ai_extract_available:
+            raise ai_unavailable_error()
+        response = await self._request(
+            "POST",
+            "/extract",
+            files={"file": (filename, file_bytes, "application/octet-stream")},
+            data={"document_id": str(document_id)},
+        )
+        return _validated_response(response, ExtractionResult)
+
+    async def analyze(self, request: AnalyzeRequest) -> CheckReport:
+        response = await self._request(
+            "POST",
+            "/analyze",
+            json=request.model_dump(mode="json", by_alias=True),
+        )
+        return _validated_response(response, CheckReport)
+
+
+def _validated_response(response: httpx.Response, model: type[ExtractionResult] | type[CheckReport]):
+    if response.status_code >= 500:
+        raise ai_unavailable_error()
+    if response.status_code != 200:
+        raise ai_contract_error(f"unexpected HTTP status {response.status_code}")
+    try:
+        return model.model_validate(response.json())
+    except (ValueError, ValidationError) as exc:
+        raise ai_contract_error("response failed schema validation") from exc
+
+
+def build_analyze_request(
+    *,
+    extraction: ExtractionResult,
+    company_name: str,
+    tax_number: str,
+    mersis: str,
+    applicant_name: str,
+    applicant_tckn_masked: str,
+    branch_code: str,
+    identity_verified_at_branch: bool,
+    registry: Registry,
+    as_of: str | None = None,
+) -> AnalyzeRequest:
+    """Project bank-owned records into the AI service's older flat request.
+
+    This adapter is intentionally at the transport boundary. The bank registry
+    stays in its stable-ID envelope while ``/analyze`` receives the keyed
+    ``{mersis: {name,status,reps}}`` shape documented by the AI engineer.
+    """
+
+    companies = {
+        company.mersis: AnalyzeRegistryCompany(
+            name=company.legal_name,
+            status=company.status.value,
+            reps=[
+                AnalyzeRegistryRepresentative(
+                    name=representative.name,
+                    tckn=representative.tckn,
+                    mode=representative.mode.value,
+                    status=representative.status.value,
+                )
+                for representative in company.representatives
+            ],
+        )
+        for company in registry.companies
+    }
+    return AnalyzeRequest(
+        extraction=extraction,
+        application=ApplicationContext(
+            company_name=company_name,
+            tax_number=tax_number,
+            mersis=mersis,
+            applicant_name=applicant_name,
+            applicant_tckn=applicant_tckn_masked,
+            branch_code=branch_code,
+            identity_verified_at_branch=identity_verified_at_branch,
+        ),
+        registry=companies,
+        as_of=as_of,
+    )
 
 
 def describe_mode(settings: Settings | None = None) -> dict[str, object]:
@@ -220,6 +362,7 @@ def describe_mode(settings: Settings | None = None) -> dict[str, object]:
     return {
         "ai_mode": settings.ai_mode.value,
         "ai_url": settings.ai_url if settings.ai_mode is AIMode.LIVE else None,
+        "extract_available": settings.ai_extract_available,
         "extraction_cache": settings.extraction_cache.value,
         "cache_ready": settings.cache_path.is_dir(),
         "cached_extractions": (

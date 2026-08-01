@@ -47,7 +47,7 @@ export const confidenceSchema = z.enum(["HIGH", "MEDIUM", "LOW"]);
 export const reviewSeveritySchema = z.enum(["INFO", "WARNING", "ERROR"]);
 export const authorityModeSchema = z.enum(["SOLE", "JOINT", "LIMITED", "UNKNOWN"]);
 export const transactionSubjectSchema = z.enum(["GENERAL", "CREDIT", "REAL_ESTATE"]);
-export const checkStatusSchema = z.enum(["GREEN", "AMBER", "RED"]);
+export const checkStatusSchema = z.enum(["green", "amber", "red"]);
 export const onboardingVerdictSchema = z.enum([
   "READY",
   "CO_SIGNER_REQUIRED",
@@ -97,7 +97,7 @@ export const reviewFlagSchema = z
 /* Extraction result — plan section 5.2                                       */
 /* -------------------------------------------------------------------------- */
 
-export const authorityRuleSchema = z
+export const canonicalAuthorityRuleSchema = z
   .object({
     id: z.string().min(1),
     subject: transactionSubjectSchema,
@@ -113,7 +113,7 @@ export const authorityRuleSchema = z
   })
   .strict();
 
-export const representativeSchema = z
+export const canonicalRepresentativeSchema = z
   .object({
     source_id: sourceId,
     name: fact(z.string()),
@@ -127,7 +127,7 @@ export const representativeSchema = z
   })
   .strict();
 
-export const extractionResultSchema = z
+export const canonicalExtractionResultSchema = z
   .object({
     schema_version: schemaVersion,
     engine: z.string().min(1),
@@ -149,8 +149,8 @@ export const extractionResultSchema = z
       })
       .strict(),
     document_valid_until: fact(isoDate),
-    representatives: z.array(representativeSchema),
-    rules: z.array(authorityRuleSchema),
+    representatives: z.array(canonicalRepresentativeSchema),
+    rules: z.array(canonicalAuthorityRuleSchema),
     annexes: z.array(
       z
         .object({
@@ -174,6 +174,107 @@ export const extractionResultSchema = z
     }
   });
 
+/** Public flat AI projection from docs/API_CONTRACT.md. */
+export const sourceEvidenceSchema = z
+  .object({
+    page: z.number().int().min(1),
+    quote: z.string().min(1),
+  })
+  .strict();
+
+export const authorityRuleSchema = z
+  .object({
+    scope: z.string().min(1),
+    threshold: amountMinor.nullable(),
+    mode: z.enum(["SOLE", "JOINT"]).nullable(),
+    coSigners: z.array(sourceId),
+    blocked: z.boolean(),
+    evidence: sourceEvidenceSchema,
+  })
+  .strict()
+  .superRefine((rule, ctx) => {
+    if (rule.blocked && (rule.mode !== null || rule.coSigners.length > 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "a blocked rule requires mode=null and coSigners=[]",
+      });
+    }
+    if (!rule.blocked && rule.mode === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["mode"],
+        message: "a non-blocked rule requires a signature mode",
+      });
+    }
+  });
+
+export const representativeSchema = z
+  .object({
+    id: sourceId,
+    name: z.string().min(1),
+    nameNormalized: z.string().min(1),
+    nationalId: tcknMasked.nullable(),
+    title: z.string().nullable(),
+    mode: z.enum(["SOLE", "JOINT"]),
+    coSigners: z.array(z.string()),
+    limits: amountMinor.nullable(),
+  })
+  .strict();
+
+export const extractionResultSchema = z
+  .object({
+    schema_version: schemaVersion,
+    document_id: z.string().min(1),
+    company: z
+      .object({
+        name: z.string().min(1),
+        taxNumber: taxNumber.nullable(),
+        mersisNumber: mersis.nullable(),
+        legalNameNormalized: z.string().min(1),
+      })
+      .strict(),
+    notary: z
+      .object({
+        name: z.string().nullable(),
+        date: isoDate.nullable(),
+        yevmiye: z.string().nullable(),
+      })
+      .strict(),
+    validUntil: isoDate.nullable(),
+    representatives: z.array(representativeSchema),
+    fieldsNeedingReview: z.array(z.string()),
+    evidence: z
+      .object({
+        authorityClause: z.string().min(1),
+        page: z.number().int().min(1),
+      })
+      .strict(),
+    rules: z.array(authorityRuleSchema),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const ids = value.representatives.map((representative) => representative.id);
+    const known = new Set(ids);
+    if (known.size !== ids.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["representatives"],
+        message: "representative id values must be unique",
+      });
+    }
+    value.rules.forEach((rule, ruleIndex) => {
+      rule.coSigners.forEach((signer, signerIndex) => {
+        if (!known.has(signer)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["rules", ruleIndex, "coSigners", signerIndex],
+            message: `unknown representative id: ${signer}`,
+          });
+        }
+      });
+    });
+  });
+
 /* -------------------------------------------------------------------------- */
 /* Check report — plan sections 5.3 and 6                                     */
 /* -------------------------------------------------------------------------- */
@@ -184,26 +285,14 @@ export const checkResultSchema = z
     status: checkStatusSchema,
     title: z.string().min(1),
     reason: z.string().min(1),
-    source_kind: checkSourceKindSchema,
-    evidence: z.array(
-      z
-        .object({
-          label: z.string().min(1),
-          value: z.string(),
-          document_evidence: z.array(evidenceRefSchema).nullable().optional(),
-        })
-        .strict(),
-    ),
+    evidence: z.record(z.union([z.string(), z.number(), z.boolean(), z.null()])),
   })
   .strict();
 
 export const checkReportSchema = z
   .object({
-    schema_version: schemaVersion,
     verdict: onboardingVerdictSchema,
     checks: z.array(checkResultSchema),
-    blocking_check_ids: z.array(z.string()),
-    generated_at: isoInstant,
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -215,16 +304,6 @@ export const checkReportSchema = z
         code: z.ZodIssueCode.custom,
         path: ["checks"],
         message: `checks must be exactly [${CHECK_IDS.join(", ")}] in order, got [${got.join(", ")}]`,
-      });
-    }
-    const unknown = value.blocking_check_ids.filter(
-      (id) => !(CHECK_IDS as readonly string[]).includes(id),
-    );
-    if (unknown.length > 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["blocking_check_ids"],
-        message: `unknown check ids: ${unknown.join(", ")}`,
       });
     }
   });

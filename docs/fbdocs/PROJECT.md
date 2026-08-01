@@ -150,7 +150,7 @@ Browser (Next.js)
    ▼
 FastAPI :8000  ── SQLite (yetkicheck.db)
    │            └ data/registry.json  (runtime, hand-editable)
-   │  HTTP, two endpoints
+   │  HTTP (`/health`, `/analyze`; `/extract` pending)
    ▼
 FastAPI :8001  (AI — not yours)
 ```
@@ -159,7 +159,7 @@ Rules that keep this clean:
 
 1. The frontend never calls :8001 directly.
 2. All backend calls live in `web/lib/api.ts` — no `fetch` anywhere else.
-3. Types live in `web/lib/types.ts`, mirroring `ai/schema.py`. They change in the same commit or not at all.
+3. AI-wire types live in `web/lib/types.ts`, mirroring `docs/API_CONTRACT.md`; bank-owned types follow `IMPLEMENTATION_PLAN.md`. Mirrors and tests change together.
 4. The backend persists everything it receives from the AI service verbatim, then serves it. It never re-derives extraction data.
 
 ## 2.3 Data model
@@ -262,7 +262,7 @@ Shared: `VerdictBanner`, `CheckRow` (with expandable evidence), `FieldTable`, `S
 
 1. `git init`; create `web/`, `api/`, `data/`; write `.gitignore` (`yetkicheck.db`, `data/registry.json`, `ai/cache/`, `web/.env.local`, `api/.env`, `node_modules/`, `.next/`, `__pycache__/`).
 2. `npx create-next-app@latest web` (App Router, TypeScript, Tailwind). Copy the design tokens out of `index.html`: color variables, radii, the serif `.paper` styling, the phone frame.
-3. `web/lib/types.ts` — hand-write `ExtractionResult`, `CheckReport`, `TransactionDecision`, `RegistryCompany` from the frozen contracts. Confirm field-by-field against `ai/schema.py` with the AI engineer, out loud.
+3. `web/lib/types.ts` — mirror `ExtractionResult` and `CheckReport` from `docs/API_CONTRACT.md`; keep bank-owned `TransactionDecision` and `RegistryCompany` from `IMPLEMENTATION_PLAN.md`. Confirm aliases and enums field-by-field.
 4. FastAPI skeleton: `api/main.py`, CORS for `localhost:3000`, `/health`.
 5. `api/models.py` — the seven SQLModel tables from §2.3. `api/db.py` with `create_all()`.
 6. `data/seed_cases.json` (4 applications, which document each uses, the case-4 registry patch) and `data/registry.seed.json`.
@@ -288,7 +288,7 @@ Shared: `VerdictBanner`, `CheckRow` (with expandable evidence), `FieldTable`, `S
 2. `POST /api/applications/{id}/document` — save file under `data/uploads/{app}/`, compute sha256, count pages, store `original_seen`, status → `DOCUMENT_SCANNED`.
 3. `GET /api/documents/{id}/page/{n}` — serve the page PNG.
 4. `services/ai_client.py` with the `AI_MODE` switch: `stub` reads `ai/tests/fixtures/case{n}.json`; `live` posts to `AI_URL`; `replay` reads the cache. One function, three branches, used everywhere.
-5. `POST /api/applications/{id}/analyze` — load registry JSON → `ai_client.extract()` → `ai_client.analyze()` → persist `Extraction` + `CheckReport` → status `ANALYZED` → return both. Idempotent: calling twice must not duplicate rows.
+5. `POST /api/applications/{id}/analyze` — obtain extraction from fixture/replay (or live `/extract` after delivery) → project registry → `ai_client.analyze()` → persist `Extraction` + `CheckReport` → status `ANALYZED` → return both. Idempotent: calling twice must not duplicate rows.
 6. `GET /api/applications/{id}` — the single aggregate the review screen needs.
 7. `POST /api/demo/load-case/{n}` — reset demo rows, seed the application, attach the right document, apply the case-4 registry patch, return the new id.
 

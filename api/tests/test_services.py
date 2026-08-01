@@ -320,6 +320,7 @@ def test_describe_mode_hides_the_ai_url_and_local_paths(demo_env: Settings) -> N
     described = ai_client.describe_mode(demo_env)
     assert described["ai_mode"] == "stub"
     assert described["ai_url"] is None
+    assert described["extract_available"] is False
     assert described["extraction_cache"] == "on"
     assert described["cache_ready"] is True
     # Section 5.7: no local filesystem paths in an API response, readiness included.

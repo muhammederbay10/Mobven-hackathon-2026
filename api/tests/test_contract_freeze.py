@@ -36,8 +36,8 @@ def test_check_ids_are_the_frozen_nine_in_order() -> None:
         "applicant_in_document",
         "identity_match",
         "authority_mode",
-        "registry_company_status",
-        "registry_representative_status",
+        "registry_status",
+        "registry_representative_match",
         "document_validity",
     )
     assert len(s.CHECK_IDS) == 9
@@ -56,12 +56,11 @@ def test_check_ids_are_the_frozen_nine_in_order() -> None:
         (s.ReviewSeverity, {"INFO", "WARNING", "ERROR"}),
         (s.AuthorityMode, {"SOLE", "JOINT", "LIMITED", "UNKNOWN"}),
         (s.TransactionSubject, {"GENERAL", "CREDIT", "REAL_ESTATE"}),
-        (s.CheckStatus, {"GREEN", "AMBER", "RED"}),
+        (s.CheckStatus, {"green", "amber", "red"}),
         (
             s.OnboardingVerdict,
             {"READY", "CO_SIGNER_REQUIRED", "MISMATCH", "REGISTRY_CONFLICT"},
         ),
-        (s.CheckSourceKind, {"APPLICATION", "IDENTITY", "DOCUMENT", "REGISTRY"}),
         (s.TransactionVerdict, {"ALLOWED", "PENDING_COSIGN", "DENIED"}),
         (
             s.ApplicationStatus,
@@ -201,20 +200,25 @@ def test_currency_is_fixed_try() -> None:
 def test_amount_minor_is_integer_kurus() -> None:
     """GAP-12: 500,000 TL is 50000000 minor units. No floating point money."""
     rule = s.AuthorityRule(
-        id="r1",
-        subject=s.TransactionSubject.GENERAL,
-        currency="TRY",
-        min_amount_minor=0,
-        max_amount_minor=50_000_000,
-        required_signers=["rep-1"],
-        minimum_signature_count=1,
-        allowed=True,
-        valid_from=None,
-        valid_until=None,
-        evidence=[],
+        scope="general",
+        threshold=50_000_000,
+        mode="SOLE",
+        coSigners=[],
+        blocked=False,
+        evidence={"page": 1, "quote": "500.000 TL'ye kadar münferiden"},
     )
-    assert rule.max_amount_minor == 50_000_000
-    assert isinstance(rule.max_amount_minor, int)
+    assert rule.threshold == 50_000_000
+    assert isinstance(rule.threshold, int)
+
+    with pytest.raises(ValidationError):
+        s.AuthorityRule(
+            scope="general",
+            threshold=500_000.0,
+            mode="SOLE",
+            coSigners=[],
+            blocked=False,
+            evidence={"page": 1, "quote": "limit"},
+        )
 
     with pytest.raises(ValidationError):
         s.AuthorizeTransactionRequest(
@@ -241,12 +245,12 @@ def test_amount_minor_is_integer_kurus() -> None:
 
 def test_correction_allowlist_is_exactly_the_six_closed_decision_fields() -> None:
     assert s.CORRECTION_PATH_ALLOWLIST == (
-        "company.legal_name.value",
-        "company.tax_number.value",
-        "company.mersis.value",
-        "representatives[<source_id>].name.value",
-        "representatives[<source_id>].authority_mode.value",
-        "document_valid_until.value",
+        "company.name",
+        "company.taxNumber",
+        "company.mersisNumber",
+        "representatives[<source_id>].name",
+        "representatives[<source_id>].mode",
+        "validUntil",
     )
     assert len(s.CORRECTION_PATH_ALLOWLIST) == 6
 
@@ -254,12 +258,12 @@ def test_correction_allowlist_is_exactly_the_six_closed_decision_fields() -> Non
 @pytest.mark.parametrize(
     "path",
     [
-        "company.legal_name.value",
-        "company.tax_number.value",
-        "company.mersis.value",
-        "representatives[rep-1].name.value",
-        "representatives[rep-2].authority_mode.value",
-        "document_valid_until.value",
+        "company.name",
+        "company.taxNumber",
+        "company.mersisNumber",
+        "representatives[rep-1].name",
+        "representatives[rep-2].mode",
+        "validUntil",
     ],
 )
 def test_correction_pattern_accepts_the_allowed_paths(path: str) -> None:
@@ -269,13 +273,13 @@ def test_correction_pattern_accepts_the_allowed_paths(path: str) -> None:
 @pytest.mark.parametrize(
     "path",
     [
-        "company.trade_registry_number.value",  # not in the six
-        "notary.name.value",
-        "rules[0].max_amount_minor",  # broadening a rule is never a correction
-        "representatives[0].name.value",  # array position, not source_id
-        "representatives[Ali Yılmaz].name.value",  # display name, not source_id
-        "representatives[rep-1].tckn_masked.value",
-        "representatives[rep-1].name",
+        "company.tradeRegistryNumber",  # not in the six
+        "notary.name",
+        "rules[0].threshold",  # broadening a rule is never a correction
+        "representatives[0].name",  # array position, not source_id
+        "representatives[Ali Yılmaz].name",  # display name, not source_id
+        "representatives[rep-1].nationalId",
+        "representatives[rep-1].name.value",
         "",
     ],
 )
@@ -295,18 +299,14 @@ def _check(check_id: str, status: s.CheckStatus = s.CheckStatus.GREEN) -> dict[s
         "status": status.value,
         "title": check_id,
         "reason": "kontrol edildi",
-        "source_kind": "DOCUMENT",
-        "evidence": [],
+        "evidence": {},
     }
 
 
 def test_check_report_requires_all_nine_checks_in_order() -> None:
     ok = {
-        "schema_version": "1.0",
         "verdict": "READY",
         "checks": [_check(cid) for cid in s.CHECK_IDS],
-        "blocking_check_ids": [],
-        "generated_at": "2026-08-01T10:00:00Z",
     }
     assert len(s.CheckReport.model_validate(ok).checks) == 9
 
@@ -318,20 +318,13 @@ def test_check_report_requires_all_nine_checks_in_order() -> None:
         reordered[0], reordered[1] = reordered[1], reordered[0]
         s.CheckReport.model_validate({**ok, "checks": [_check(c) for c in reordered]})
 
-    with pytest.raises(ValidationError):  # unknown blocking id
-        s.CheckReport.model_validate({**ok, "blocking_check_ids": ["not_a_check"]})
-
-
 def test_unknown_keys_are_a_reportable_contract_defect() -> None:
     """Plan section 8.8: drift is reported, never silently absorbed."""
     with pytest.raises(ValidationError):
         s.CheckReport.model_validate(
             {
-                "schema_version": "1.0",
                 "verdict": "READY",
                 "checks": [_check(cid) for cid in s.CHECK_IDS],
-                "blocking_check_ids": [],
-                "generated_at": "2026-08-01T10:00:00Z",
                 "confidence_score": 0.91,  # not in the contract
             }
         )
@@ -360,16 +353,6 @@ def test_error_body_matches_the_standard_shape() -> None:
 
 
 def test_instants_are_utc_and_dates_are_calendar_only() -> None:
-    with pytest.raises(ValidationError):  # local time, no zone
-        s.CheckReport.model_validate(
-            {
-                "schema_version": "1.0",
-                "verdict": "READY",
-                "checks": [_check(cid) for cid in s.CHECK_IDS],
-                "blocking_check_ids": [],
-                "generated_at": "2026-08-01 13:00:00",
-            }
-        )
     with pytest.raises(ValidationError):  # Turkish display format is a UI concern
         s.AuthorityPerson(
             id="p1",
@@ -399,7 +382,6 @@ def test_typescript_mirror_carries_every_frozen_literal() -> None:
         s.TransactionSubject,
         s.CheckStatus,
         s.OnboardingVerdict,
-        s.CheckSourceKind,
         s.TransactionVerdict,
         s.ApplicationStatus,
         s.TransactionStatus,

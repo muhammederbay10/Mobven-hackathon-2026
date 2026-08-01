@@ -1,24 +1,19 @@
-"""Frozen shared contracts for the YetkiCheck bank API.
+"""Shared contracts for the YetkiCheck bank API and the external AI service.
 
-This module is the Python mirror of the contracts defined in
-``docs/fbdocs/IMPLEMENTATION_PLAN.md`` section 5, together with the enum,
-identifier, date and error formats frozen in Phase 0 shared architecture
-step 3.  Its TypeScript twin is ``web/lib/types.ts`` / ``web/lib/contracts.ts``.
+The AI-wire models mirror ``docs/API_CONTRACT.md``. Bank-owned resource models
+remain governed by ``docs/fbdocs/IMPLEMENTATION_PLAN.md``. Its TypeScript twin
+is ``web/lib/types.ts`` / ``web/lib/contracts.ts``.
 
 Ownership
 ---------
-The AI engineer owns ``ai/schema.py``.  This file *mirrors* it; it never
-replaces it and is never the place to negotiate a contract change.  Per
-IMPLEMENTATION_PLAN.md section 5 and section 18.11, a contract change is
-coordinated with the AI engineer, who updates the AI-owned file first.
+The AI engineer owns ``ai/schema.py``. This file consumes its public JSON
+projection; it never replaces the AI-owned source.
 
 Strictness policy
 -----------------
-Every model sets ``extra="forbid"``.  On AI-delivered payloads an unknown key
-is drift, and section 8.8 requires drift to be *reported* as a contract defect
-rather than silently absorbed.  Section 15 defines the runtime consequence:
-"Invalid AI schema: store no partial extraction/report; return a retryable
-integration error."
+AI responses and bank API messages reject unknown fields. ``/analyze`` input
+records are the one documented exception: the AI service deliberately ignores
+unknown application/registry fields so a whole database row can be sent safely.
 
 What this module deliberately does NOT do
 -----------------------------------------
@@ -32,7 +27,7 @@ against delivered fixtures, never as runtime business logic.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Annotated, Generic, Literal, TypeVar
+from typing import Annotated, Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
@@ -87,13 +82,17 @@ RegistryRepIdStr = Annotated[str, StringConstraints(pattern=REGISTRY_REP_ID_PATT
 SourceIdStr = Annotated[str, StringConstraints(pattern=EXTRACTION_SOURCE_ID_PATTERN)]
 IsoDateStr = Annotated[str, StringConstraints(pattern=ISO_DATE_PATTERN)]
 IsoInstantStr = Annotated[str, StringConstraints(pattern=ISO_INSTANT_PATTERN)]
-AmountMinorInt = Annotated[int, Field(ge=0, le=MAX_AMOUNT_MINOR)]
+AmountMinorInt = Annotated[int, Field(strict=True, ge=0, le=MAX_AMOUNT_MINOR)]
 
 
 class FrozenModel(BaseModel):
     """Base for every contract model: unknown keys are a reportable defect."""
 
-    model_config = ConfigDict(extra="forbid", use_enum_values=False)
+    model_config = ConfigDict(
+        extra="forbid",
+        use_enum_values=False,
+        populate_by_name=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -120,6 +119,13 @@ class AuthorityMode(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
+class SignatureMode(str, Enum):
+    """Closed signature-mode set exposed by the AI wire contract."""
+
+    SOLE = "SOLE"
+    JOINT = "JOINT"
+
+
 class TransactionSubject(str, Enum):
     GENERAL = "GENERAL"
     CREDIT = "CREDIT"
@@ -127,9 +133,9 @@ class TransactionSubject(str, Enum):
 
 
 class CheckStatus(str, Enum):
-    GREEN = "GREEN"
-    AMBER = "AMBER"
-    RED = "RED"
+    GREEN = "green"
+    AMBER = "amber"
+    RED = "red"
 
 
 class OnboardingVerdict(str, Enum):
@@ -137,13 +143,6 @@ class OnboardingVerdict(str, Enum):
     CO_SIGNER_REQUIRED = "CO_SIGNER_REQUIRED"
     MISMATCH = "MISMATCH"
     REGISTRY_CONFLICT = "REGISTRY_CONFLICT"
-
-
-class CheckSourceKind(str, Enum):
-    APPLICATION = "APPLICATION"
-    IDENTITY = "IDENTITY"
-    DOCUMENT = "DOCUMENT"
-    REGISTRY = "REGISTRY"
 
 
 class TransactionVerdict(str, Enum):
@@ -286,7 +285,7 @@ class ReviewFlag(FrozenModel):
 # ---------------------------------------------------------------------------
 
 
-class AuthorityRule(FrozenModel):
+class CanonicalAuthorityRule(FrozenModel):
     id: str = Field(min_length=1)
     subject: TransactionSubject
     currency: Literal["TRY"] = CURRENCY
@@ -304,7 +303,7 @@ class AuthorityRule(FrozenModel):
     evidence: list[EvidenceRef] = Field(default_factory=list)
 
 
-class Representative(FrozenModel):
+class CanonicalRepresentative(FrozenModel):
     source_id: SourceIdStr = Field(description="stable within this extraction, e.g. rep-1")
     name: Fact[str]
     tckn_masked: Fact[TcknMaskedStr]
@@ -316,43 +315,131 @@ class Representative(FrozenModel):
     valid_until: Fact[IsoDateStr]
 
 
-class ExtractionCompany(FrozenModel):
+class CanonicalExtractionCompany(FrozenModel):
     legal_name: Fact[str]
     tax_number: Fact[TaxNumberStr]
     mersis: Fact[MersisStr]
     trade_registry_number: Fact[str]
 
 
-class ExtractionNotary(FrozenModel):
+class CanonicalExtractionNotary(FrozenModel):
     name: Fact[str]
     date: Fact[IsoDateStr]
     journal_number: Fact[str]
 
 
-class ExtractionAnnex(FrozenModel):
+class CanonicalExtractionAnnex(FrozenModel):
     type: str = Field(min_length=1)
     pages: list[int] = Field(default_factory=list)
     parsed: bool
 
 
-class ExtractionResult(FrozenModel):
+class CanonicalExtractionResult(FrozenModel):
     schema_version: Literal["1.0"]
     engine: str = Field(min_length=1)
     document_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     page_count: int = Field(ge=1)
-    company: ExtractionCompany
-    notary: ExtractionNotary
+    company: CanonicalExtractionCompany
+    notary: CanonicalExtractionNotary
     document_valid_until: Fact[IsoDateStr]
-    representatives: list[Representative] = Field(default_factory=list)
-    rules: list[AuthorityRule] = Field(default_factory=list)
-    annexes: list[ExtractionAnnex] = Field(default_factory=list)
+    representatives: list[CanonicalRepresentative] = Field(default_factory=list)
+    rules: list[CanonicalAuthorityRule] = Field(default_factory=list)
+    annexes: list[CanonicalExtractionAnnex] = Field(default_factory=list)
     fields_needing_review: list[ReviewFlag] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _source_ids_are_unique(self) -> ExtractionResult:
+    def _source_ids_are_unique(self) -> CanonicalExtractionResult:
         seen = [r.source_id for r in self.representatives]
         if len(seen) != len(set(seen)):
             raise ValueError("representative source_id values must be unique")
+        return self
+
+
+# ---------------------------------------------------------------------------
+# Public flat extraction contract â€” docs/API_CONTRACT.md section 3
+# ---------------------------------------------------------------------------
+
+
+class SourceEvidence(FrozenModel):
+    page: int = Field(ge=1, description="1-based page number")
+    quote: str = Field(min_length=1, description="verbatim source text")
+
+
+class AuthorityClauseEvidence(FrozenModel):
+    authority_clause: str = Field(min_length=1, alias="authorityClause")
+    page: int = Field(ge=1)
+
+
+class ExtractionCompany(FrozenModel):
+    name: str = Field(min_length=1)
+    tax_number: TaxNumberStr | None = Field(default=None, alias="taxNumber")
+    mersis_number: MersisStr | None = Field(default=None, alias="mersisNumber")
+    legal_name_normalized: str = Field(min_length=1, alias="legalNameNormalized")
+
+
+class ExtractionNotary(FrozenModel):
+    name: str | None = None
+    date: IsoDateStr | None = None
+    yevmiye: str | None = None
+
+
+class Representative(FrozenModel):
+    id: SourceIdStr = Field(description="stable document-order ID, e.g. rep-1")
+    name: str = Field(min_length=1)
+    name_normalized: str = Field(min_length=1, alias="nameNormalized")
+    national_id: TcknMaskedStr | None = Field(default=None, alias="nationalId")
+    title: str | None = None
+    mode: SignatureMode
+    co_signers: list[str] = Field(default_factory=list, alias="coSigners")
+    limits: AmountMinorInt | None = None
+
+
+class ExtractionRule(FrozenModel):
+    scope: str = Field(min_length=1)
+    threshold: AmountMinorInt | None = None
+    mode: SignatureMode | None = None
+    co_signers: list[SourceIdStr] = Field(default_factory=list, alias="coSigners")
+    blocked: bool = False
+    evidence: SourceEvidence
+
+    @model_validator(mode="after")
+    def _blocked_shape_is_consistent(self) -> ExtractionRule:
+        if self.blocked and (self.mode is not None or self.co_signers):
+            raise ValueError("a blocked rule requires mode=null and coSigners=[]")
+        if not self.blocked and self.mode is None:
+            raise ValueError("a non-blocked rule requires a signature mode")
+        return self
+
+
+# Approved authority records store the reviewed AI rule projection verbatim.
+AuthorityRule = ExtractionRule
+
+
+class ExtractionResult(FrozenModel):
+    schema_version: Literal["1.0"] = SCHEMA_VERSION
+    document_id: str = Field(min_length=1)
+    company: ExtractionCompany
+    notary: ExtractionNotary
+    valid_until: IsoDateStr | None = Field(default=None, alias="validUntil")
+    representatives: list[Representative]
+    fields_needing_review: list[str] = Field(default_factory=list, alias="fieldsNeedingReview")
+    evidence: AuthorityClauseEvidence
+    rules: list[ExtractionRule]
+
+    @model_validator(mode="after")
+    def _references_are_stable_and_resolved(self) -> ExtractionResult:
+        ids = [representative.id for representative in self.representatives]
+        if len(ids) != len(set(ids)):
+            raise ValueError("representative id values must be unique")
+        known = set(ids)
+        unresolved = sorted(
+            signer
+            for rule in self.rules
+            for signer in rule.co_signers
+            if signer not in known
+        )
+        if unresolved:
+            raise ValueError(f"rule coSigners contain unknown representative ids: {unresolved}")
         return self
 
 
@@ -368,8 +455,8 @@ CHECK_IDS: tuple[str, ...] = (
     "applicant_in_document",
     "identity_match",
     "authority_mode",
-    "registry_company_status",
-    "registry_representative_status",
+    "registry_status",
+    "registry_representative_match",
     "document_validity",
 )
 
@@ -384,27 +471,17 @@ VERDICT_PRECEDENCE_NOTE = (
 )
 
 
-class CheckEvidenceItem(FrozenModel):
-    label: str = Field(min_length=1)
-    value: str
-    document_evidence: list[EvidenceRef] | None = None
-
-
 class CheckResult(FrozenModel):
     id: str = Field(min_length=1)
     status: CheckStatus
     title: str = Field(min_length=1)
     reason: str = Field(min_length=1)
-    source_kind: CheckSourceKind
-    evidence: list[CheckEvidenceItem] = Field(default_factory=list)
+    evidence: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
 
 
 class CheckReport(FrozenModel):
-    schema_version: Literal["1.0"]
     verdict: OnboardingVerdict
     checks: list[CheckResult] = Field(description="exactly nine, in the defined order")
-    blocking_check_ids: list[str] = Field(default_factory=list)
-    generated_at: IsoInstantStr
 
     @model_validator(mode="after")
     def _checks_match_the_frozen_nine(self) -> CheckReport:
@@ -420,38 +497,53 @@ class CheckReport(FrozenModel):
             raise ValueError(
                 f"checks must be exactly {list(CHECK_IDS)} in order, got {list(got)}"
             )
-        unknown = set(self.blocking_check_ids) - set(CHECK_IDS)
-        if unknown:
-            raise ValueError(f"blocking_check_ids contains unknown ids: {sorted(unknown)}")
         return self
 
 
-class AnalyzeRequest(FrozenModel):
-    """Body the bank API sends to the AI service ``POST /analyze`` (GAP-03).
+class InboundModel(BaseModel):
+    """Tolerant records accepted by the AI service's ``/analyze`` endpoint."""
 
-    The API loads the registry and passes it in; the AI service is stateless and
-    file-system-free, so it never reads registry.json, application rows or
-    uploaded files by path.
-    """
-
-    extraction: ExtractionResult
-    application: "ApplicationContext"
-    registry: "RegistryCompany | None"
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
 
-class ApplicationContext(FrozenModel):
+class ApplicationContext(InboundModel):
     """Application + branch-verified identity, as seen by the AI comparison."""
 
-    company_name: str = Field(min_length=1)
-    tax_number: TaxNumberStr
-    mersis: MersisStr
-    applicant_name: str = Field(min_length=1)
-    applicant_tckn_masked: TcknMaskedStr
-    branch_code: str = Field(min_length=1)
-    identity_verified_at_branch: bool
-    analysis_date: IsoDateStr = Field(
-        description="date the checks are evaluated against (check 9)"
-    )
+    company_name: str | None = None
+    tax_number: str | None = None
+    mersis: str | None = None
+    applicant_name: str | None = None
+    applicant_tckn: str | None = None
+    branch_code: str | None = None
+    identity_verified_at_branch: bool = False
+
+
+class AnalyzeRegistryRepresentative(InboundModel):
+    name: str
+    tckn: str | None = None
+    mode: str | None = None
+    status: str = "ACTIVE"
+
+
+class AnalyzeRegistryCompany(InboundModel):
+    name: str | None = None
+    status: str = "ACTIVE"
+    reps: list[AnalyzeRegistryRepresentative] = Field(default_factory=list)
+
+
+class AnalyzeRequest(InboundModel):
+    """Exact body sent to the deterministic AI ``POST /analyze`` endpoint."""
+
+    extraction: ExtractionResult
+    application: ApplicationContext = Field(default_factory=ApplicationContext)
+    registry: dict[str, AnalyzeRegistryCompany] = Field(default_factory=dict)
+    as_of: IsoDateStr | None = None
+
+
+class AIHealthResponse(FrozenModel):
+    status: Literal["ok"]
+    engine: str = Field(min_length=1)
+    schema_version: Literal["1.0"]
 
 
 # ---------------------------------------------------------------------------
@@ -605,17 +697,17 @@ class ErrorResponse(FrozenModel):
 # <source_id> resolves against the immutable representative source ID, never an
 # array position or display name.
 CORRECTION_PATH_ALLOWLIST: tuple[str, ...] = (
-    "company.legal_name.value",
-    "company.tax_number.value",
-    "company.mersis.value",
-    "representatives[<source_id>].name.value",
-    "representatives[<source_id>].authority_mode.value",
-    "document_valid_until.value",
+    "company.name",
+    "company.taxNumber",
+    "company.mersisNumber",
+    "representatives[<source_id>].name",
+    "representatives[<source_id>].mode",
+    "validUntil",
 )
 CORRECTION_PATH_PATTERN = (
-    r"^(company\.(legal_name|tax_number|mersis)\.value"
-    r"|representatives\[[a-z][a-z0-9_-]{0,63}\]\.(name|authority_mode)\.value"
-    r"|document_valid_until\.value)$"
+    r"^(company\.(name|taxNumber|mersisNumber)"
+    r"|representatives\[[a-z][a-z0-9_-]{0,63}\]\.(name|mode)"
+    r"|validUntil)$"
 )
 
 
@@ -627,6 +719,50 @@ class CreateApplicationRequest(FrozenModel):
     applicant_tckn_masked: TcknMaskedStr
     branch_code: str = Field(min_length=1)
     identity_verified_at_branch: bool
+
+
+# ---------------------------------------------------------------------------
+# 11. Bank-API resource views — IMPLEMENTATION_PLAN.md section 8.3
+# ---------------------------------------------------------------------------
+
+
+class ApplicationView(FrozenModel):
+    id: int
+    company_name: str
+    tax_number: TaxNumberStr
+    mersis: MersisStr
+    applicant_name: str
+    applicant_tckn_masked: TcknMaskedStr
+    branch_code: str
+    identity_verified_at_branch: bool
+    status: ApplicationStatus
+    version: int = Field(ge=1)
+    created_at: IsoInstantStr
+    updated_at: IsoInstantStr
+
+
+class DocumentView(FrozenModel):
+    id: int
+    application_id: int
+    original_filename: str
+    mime_type: Literal["application/pdf", "image/png", "image/jpeg"]
+    size_bytes: int = Field(ge=1)
+    document_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    page_count: int = Field(ge=1)
+    original_seen: bool
+    scanned_by: str
+    created_at: IsoInstantStr
+
+
+class ApplicationAggregate(FrozenModel):
+    """The single server-backed payload used to restore the branch screen."""
+
+    application: ApplicationView
+    document: DocumentView | None = None
+    extraction: dict[str, Any] | None = None
+    report: dict[str, Any] | None = None
+    corrections: list[dict[str, Any]] = Field(default_factory=list)
+    authority: dict[str, Any] | None = None
 
 
 # POST /api/applications/{id}/document is multipart/form-data:

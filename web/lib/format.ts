@@ -104,10 +104,10 @@ export const ONBOARDING_VERDICT_LABEL: Record<OnboardingVerdict, string> = {
  * only chooses a color for one the API already returned.
  */
 export const ONBOARDING_VERDICT_STATUS: Record<OnboardingVerdict, CheckStatus> = {
-  READY: "GREEN",
-  CO_SIGNER_REQUIRED: "AMBER",
-  MISMATCH: "RED",
-  REGISTRY_CONFLICT: "RED",
+  READY: "green",
+  CO_SIGNER_REQUIRED: "amber",
+  MISMATCH: "red",
+  REGISTRY_CONFLICT: "red",
 };
 
 export const TRANSACTION_VERDICT_LABEL: Record<TransactionVerdict, string> = {
@@ -121,13 +121,13 @@ export const TRANSACTION_VERDICT_LABEL: Record<TransactionVerdict, string> = {
  * (plan section 10.1). This is the shared symbol vocabulary.
  */
 export const CHECK_STATUS_SYMBOL: Record<CheckStatus, string> = {
-  GREEN: "✓",
-  AMBER: "!",
-  RED: "×",
+  green: "✓",
+  amber: "!",
+  red: "×",
 };
 
 export const CHECK_STATUS_LABEL: Record<CheckStatus, string> = {
-  GREEN: "Uygun",
-  AMBER: "Dikkat",
-  RED: "Engel",
+  green: "Uygun",
+  amber: "Dikkat",
+  red: "Engel",
 };

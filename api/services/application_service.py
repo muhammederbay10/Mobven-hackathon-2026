@@ -12,12 +12,28 @@ and then call the functions below, exactly as a non-demo request would.
 
 from __future__ import annotations
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from api.db import utc_now
-from api.errors import invalid_state_transition
-from api.models import Application, AuditAction, AuditEntity
-from api.schemas import APPLICATION_TRANSITIONS, ApplicationStatus, CreateApplicationRequest
+from api.db import to_iso_instant, utc_now
+from api.errors import invalid_state_transition, not_found
+from api.models import (
+    Application,
+    AuditAction,
+    AuditEntity,
+    AuthorityRecord,
+    CheckReportRow,
+    Document,
+    Extraction,
+    ExtractionCorrection,
+)
+from api.schemas import (
+    APPLICATION_TRANSITIONS,
+    ApplicationAggregate,
+    ApplicationStatus,
+    ApplicationView,
+    CreateApplicationRequest,
+    DocumentView,
+)
 from api.services import audit_service
 
 
@@ -106,3 +122,121 @@ def transition(
 
 def can_transition(current: ApplicationStatus, target: ApplicationStatus) -> bool:
     return target in APPLICATION_TRANSITIONS[current]
+
+
+def get_application(session: Session, application_id: int) -> Application:
+    application = session.get(Application, application_id)
+    if application is None:
+        raise not_found("Başvuru", application_id)
+    return application
+
+
+def application_view(application: Application) -> ApplicationView:
+    assert application.id is not None
+    return ApplicationView(
+        id=application.id,
+        company_name=application.company_name,
+        tax_number=application.tax_number,
+        mersis=application.mersis,
+        applicant_name=application.applicant_name,
+        applicant_tckn_masked=application.applicant_tckn_masked,
+        branch_code=application.branch_code,
+        identity_verified_at_branch=application.identity_verified_at_branch,
+        status=application.status,
+        version=application.version,
+        created_at=to_iso_instant(application.created_at),
+        updated_at=to_iso_instant(application.updated_at),
+    )
+
+
+def document_view(document: Document) -> DocumentView:
+    assert document.id is not None
+    return DocumentView(
+        id=document.id,
+        application_id=document.application_id,
+        original_filename=document.original_filename,
+        mime_type=document.mime_type,
+        size_bytes=document.size_bytes,
+        document_sha256=document.sha256,
+        page_count=document.page_count,
+        original_seen=document.original_seen,
+        scanned_by=document.scanned_by,
+        created_at=to_iso_instant(document.created_at),
+    )
+
+
+def aggregate(session: Session, application_id: int) -> ApplicationAggregate:
+    """Return the complete server-backed branch state in one read."""
+    application = get_application(session, application_id)
+    document = session.exec(
+        select(Document)
+        .where(Document.application_id == application_id)
+        .order_by(Document.id.desc())
+    ).first()
+
+    extraction = None
+    report = None
+    corrections: list[dict[str, object]] = []
+    if document is not None:
+        extraction = session.exec(
+            select(Extraction)
+            .where(Extraction.document_id == document.id)
+            .order_by(Extraction.id.desc())
+        ).first()
+        if extraction is not None:
+            report = session.exec(
+                select(CheckReportRow)
+                .where(
+                    CheckReportRow.application_id == application_id,
+                    CheckReportRow.extraction_id == extraction.id,
+                )
+                .order_by(CheckReportRow.id.desc())
+            ).first()
+            correction_rows = session.exec(
+                select(ExtractionCorrection)
+                .where(ExtractionCorrection.extraction_id == extraction.id)
+                .order_by(ExtractionCorrection.id)
+            ).all()
+            corrections = [
+                {
+                    "id": row.id,
+                    "field_path": row.field_path,
+                    "old_value_json": row.old_value_json,
+                    "new_value_json": row.new_value_json,
+                    "reviewer": row.reviewer,
+                    "reason": row.reason,
+                    "created_at": to_iso_instant(row.created_at),
+                }
+                for row in correction_rows
+            ]
+
+    authority = session.exec(
+        select(AuthorityRecord)
+        .where(AuthorityRecord.source_application_id == application_id)
+        .order_by(AuthorityRecord.id.desc())
+    ).first()
+
+    authority_payload = None
+    if authority is not None:
+        authority_payload = {
+            "id": authority.id,
+            "mersis": authority.mersis,
+            "version": authority.version,
+            "status": authority.status.value,
+            "source_application_id": authority.source_application_id,
+            "source_document_id": authority.source_document_id,
+            "verified_at": to_iso_instant(authority.verified_at),
+            "verified_by": authority.verified_by,
+            "valid_until": authority.valid_until,
+            "persons": authority.persons,
+            "rules": authority.rules,
+        }
+
+    return ApplicationAggregate(
+        application=application_view(application),
+        document=document_view(document) if document is not None else None,
+        extraction=extraction.payload if extraction is not None else None,
+        report=report.payload if report is not None else None,
+        corrections=corrections,
+        authority=authority_payload,
+    )
