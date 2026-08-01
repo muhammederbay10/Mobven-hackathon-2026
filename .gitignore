@@ -39,6 +39,7 @@ deck-assets
 .tmp
 .pytest_tmp
 extraction-spike
+tmp
 
 # ── Codex ───────────────────────────────────────
 AGENTS.md
@@ -54,5 +55,6 @@ PROJECT_STATE.md
 
 # ── Misc ────────────────────────────────────────────────────
 *.log
+ai/cache/
 
 docs

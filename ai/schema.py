@@ -119,6 +119,44 @@ class DocumentReferenceType(StrEnum):
     OTHER = "other"
 
 
+class ExtractorAgent(StrEnum):
+    APPOINTMENTS = "appointments"
+    RULES = "rules"
+    SPECIMENS = "specimens"
+    ANNEX = "annex"
+    REVIEW = "review"
+
+
+class ExtractorRole(StrEnum):
+    PRIMARY = "primary"
+    WITNESS = "witness"
+
+
+class ExtractorStatus(StrEnum):
+    SUCCESS = "success"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class ProgressState(StrEnum):
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class PipelineMode(StrEnum):
+    LIVE = "live"
+    STUB = "stub"
+    REPLAY = "replay"
+
+
+class PipelineStageStatus(StrEnum):
+    OK = "ok"
+    DEGRADED = "degraded"
+    SKIPPED = "skipped"
+
+
 class SourceEvidence(StrictModel):
     page: int = Field(ge=1)
     quote: str = Field(min_length=1)
@@ -140,12 +178,15 @@ class RulePartyRef(StrictModel):
 
 
 class AuthorityRule(StrictModel):
+    """Amounts are integer kuruş (1 TL = 100 kuruş), matching the flat contract's money unit
+    so no float-rounding conversion ever happens between the rich and flat representations."""
+
     schema_version: Literal["1.0"] = SCHEMA_VERSION
     who: RulePartyRef
     sole_or_joint: RuleSigningForm
     joint_with: list[RulePartyRef] = Field(default_factory=list)
-    amount_min: float | None = Field(default=None, ge=0)
-    amount_max: float | None = Field(default=None, ge=0)
+    amount_min: int | None = Field(default=None, ge=0)
+    amount_max: int | None = Field(default=None, ge=0)
     currency: str | None = None
     scope_tags: list[str] = Field(default_factory=list)
     scope_text: str
@@ -216,6 +257,147 @@ class PageMap(StrictModel):
         return self
 
 
+RawDate = Date | Literal["UNREADABLE"]
+
+
+class RawCompanyExtraction(StrictModel):
+    legal_name: str = Field(min_length=1)
+    vkn: str | None = None
+    trade_registry_no: str | None = None
+    mersis: str | None = None
+    address: str | None = None
+    evidence: list[SourceEvidence] = Field(default_factory=list)
+
+
+class RawNotaryExtraction(StrictModel):
+    name: str | None = None
+    date: RawDate | None = None
+    yevmiye_no: str | None = None
+    evidence: list[SourceEvidence] = Field(default_factory=list)
+
+
+class RawDocumentReference(StrictModel):
+    ref_doc_type: DocumentReferenceType
+    ref_date: RawDate | None = None
+    ref_number: str | None = None
+    evidence: SourceEvidence
+
+
+class RawAppointment(StrictModel):
+    name_printed: str = Field(min_length=1)
+    title: str | None = None
+    id_no_masked: str | None = None
+    group_code: str | None = None
+    authority_form: str | None = None
+    joint_with_names: list[str] = Field(default_factory=list)
+    valid_from: RawDate | None = None
+    valid_until: RawDate | None = None
+    evidence: SourceEvidence
+
+
+class AppointmentsAgentOutput(StrictModel):
+    company: RawCompanyExtraction
+    notary: RawNotaryExtraction | None = None
+    document_valid_until: RawDate | None = None
+    appointments: list[RawAppointment] = Field(default_factory=list)
+    references: list[RawDocumentReference] = Field(default_factory=list)
+
+
+class RawRuleParty(StrictModel):
+    type: RulePartyType
+    ref: str | None = None
+    name: str | None = None
+    note: str | None = None
+
+    @model_validator(mode="after")
+    def validate_raw_reference_shape(self) -> RawRuleParty:
+        if self.type is RulePartyType.GROUP and not self.ref:
+            raise ValueError("raw group references require ref")
+        if self.type in {RulePartyType.PERSON, RulePartyType.UNRESOLVED_EXTERNAL} and not self.name:
+            raise ValueError("raw person references require name")
+        return self
+
+
+class RawAuthorityRule(StrictModel):
+    who: RawRuleParty
+    sole_or_joint: RuleSigningForm
+    joint_with: list[RawRuleParty] = Field(default_factory=list)
+    amount_min: int | None = Field(default=None, ge=0)
+    amount_max: int | None = Field(default=None, ge=0)
+    currency: str | None = None
+    scope_tags: list[str] = Field(default_factory=list)
+    scope_text: str
+    valid_until: RawDate | None = None
+    evidence: SourceEvidence
+    partial: bool = False
+
+    @model_validator(mode="after")
+    def validate_raw_amount_range(self) -> RawAuthorityRule:
+        if (
+            self.amount_min is not None
+            and self.amount_max is not None
+            and self.amount_max <= self.amount_min
+        ):
+            raise ValueError("amount_max must be greater than amount_min")
+        return self
+
+
+class RulesAgentOutput(StrictModel):
+    rules: list[RawAuthorityRule] = Field(default_factory=list)
+
+
+class RawSpecimen(StrictModel):
+    name_printed: str = Field(min_length=1)
+    title: str | None = None
+    group_code: str | None = None
+    signature_bbox: SpecimenBoundingBox
+
+
+class SpecimensAgentOutput(StrictModel):
+    specimens: list[RawSpecimen] = Field(default_factory=list)
+
+
+AgentOutput = AppointmentsAgentOutput | RulesAgentOutput | SpecimensAgentOutput
+
+
+class ChunkExtractionResult(StrictModel):
+    chunk_id: str = Field(min_length=1)
+    agent: ExtractorAgent
+    role: ExtractorRole
+    status: ExtractorStatus
+    model: str | None = None
+    supporting_only: bool = False
+    attempts: int = Field(ge=0, le=2)
+    chunk_failed: bool = False
+    output: AgentOutput | None = None
+    error: str | None = None
+    raw_responses: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_result_shape(self) -> ChunkExtractionResult:
+        if self.status is ExtractorStatus.SUCCESS:
+            if self.output is None or self.error is not None or self.chunk_failed:
+                raise ValueError("successful chunk results require output and no failure fields")
+            if self.attempts not in {1, 2}:
+                raise ValueError("successful chunk results require one or two attempts")
+        elif self.status is ExtractorStatus.FAILED:
+            if self.output is not None or not self.error or not self.chunk_failed:
+                raise ValueError("failed chunk results require error and chunk_failed=true")
+            if self.attempts != 2:
+                raise ValueError("failed chunk results require two attempts")
+        elif self.output is not None or self.attempts != 0 or self.chunk_failed:
+            raise ValueError("skipped chunk results cannot carry output, attempts, or failure")
+        return self
+
+
+class ExtractorProgress(StrictModel):
+    name: str
+    state: ProgressState
+    detail: str = ""
+    chunk_id: str
+    role: ExtractorRole
+
+
 class CompanyRecord(StrictModel):
     legal_name: str
     vkn: str | None = None
@@ -246,6 +428,14 @@ class ProvenanceFlag(StrictModel):
     field_path: str
     evidence_page: int | None = Field(default=None, ge=1)
     anomaly_code: str | None = None
+
+
+class ValidationOutcome(StrictModel):
+    flags: list[ProvenanceFlag] = Field(default_factory=list)
+    fields_needing_review: list[str] = Field(
+        default_factory=list, alias="fieldsNeedingReview"
+    )
+    anomaly_codes: list[str] = Field(default_factory=list, alias="anomalyCodes")
 
 
 class CircularExtraction(StrictModel):
@@ -291,19 +481,23 @@ class ExtractionNotary(StrictModel):
 class Representative(StrictModel):
     """A signatory in the flat contract.
 
+    `id` is a stable source identifier ('rep-1', 'rep-2', ...) assigned by document order —
+    a join key that survives a name correction, unlike matching on `name`.
     `name` is the printed value and is authoritative for display, evidence and audit.
     `name_normalized` is derived, non-authoritative and recomputable. Consumers such as
     api/ must match people on `name_normalized`; comparing printed names re-introduces
     Turkish casing bugs (ALİ YILMAZ vs Ali Yılmaz) outside the single source of truth.
+    `limits` is integer kuruş (1 TL = 100 kuruş): 500,000.00 TL is 50000000.
     """
 
+    id: str = Field(min_length=1)
     name: str
     name_normalized: str | None = Field(default=None, alias="nameNormalized")
     national_id: MaskedNationalId | None = Field(default=None, alias="nationalId")
     title: str | None = None
     mode: SignatureMode
     co_signers: list[str] = Field(default_factory=list, alias="coSigners")
-    limits: float | None = Field(default=None, ge=0)
+    limits: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def derive_name_normalized(self) -> Representative:
@@ -318,13 +512,34 @@ class AuthorityClauseEvidence(StrictModel):
 
 
 class ExtractionRule(StrictModel):
-    """Flat optional projection agreed in PLAN_ALIGNMENT conflict 1."""
+    """Flat optional projection agreed in PLAN_ALIGNMENT conflict 1.
+
+    `threshold` is integer kuruş (1 TL = 100 kuruş); null means unbounded within this scope.
+    `coSigners` holds representative `id`s (e.g. "rep-2"), NOT names — a rule is machine-consumed
+    by the authority engine, which must resolve signers by stable ID rather than by fragile,
+    Turkish-casing-sensitive name strings. (Representative.coSigners is the opposite case: it
+    stays names, because compare.py reads it to print a human-readable Turkish check reason.)
+    `blocked` represents a scope the circular explicitly excludes — e.g. real estate transactions
+    requiring a separate board decision — where no signing mode exists under this document at all.
+    A blocked rule carries `mode: null` and empty `coSigners`; the exclusion clause is still real
+    evidence and must not be silently dropped just because no representative can act on it.
+    """
 
     scope: str
-    threshold: float | None = Field(default=None, ge=0)
-    mode: SignatureMode
+    threshold: int | None = Field(default=None, ge=0)
+    mode: SignatureMode | None = None
     co_signers: list[str] = Field(default_factory=list, alias="coSigners")
+    blocked: bool = False
     evidence: SourceEvidence
+
+    @model_validator(mode="after")
+    def validate_blocked_shape(self) -> ExtractionRule:
+        if self.blocked:
+            if self.mode is not None or self.co_signers:
+                raise ValueError("a blocked rule must not carry a mode or coSigners")
+        elif self.mode is None:
+            raise ValueError("a non-blocked rule requires a mode")
+        return self
 
 
 class ExtractionResult(StrictModel):
@@ -339,6 +554,40 @@ class ExtractionResult(StrictModel):
     )
     evidence: AuthorityClauseEvidence
     rules: list[ExtractionRule] | None = None
+
+    @model_validator(mode="after")
+    def validate_rule_signer_ids_resolve(self) -> ExtractionResult:
+        # A rule co-signer that resolves to nobody would let the authority engine silently
+        # skip a required signature instead of flagging it — fail loudly here instead.
+        known_ids = {representative.id for representative in self.representatives}
+        for index, rule in enumerate(self.rules or []):
+            for signer_id in rule.co_signers:
+                if signer_id not in known_ids:
+                    raise ValueError(
+                        f"rules[{index}].coSigners references unknown representative id {signer_id!r}"
+                    )
+        return self
+
+
+class PipelineStageTiming(StrictModel):
+    stage: str = Field(min_length=1)
+    seconds: float = Field(ge=0)
+    status: PipelineStageStatus = PipelineStageStatus.OK
+    detail: str | None = None
+
+
+class ExtractionCacheEntry(StrictModel):
+    """Private sha256-keyed replay artifact; never returned by the HTTP API."""
+
+    schema_version: Literal["1.0"] = SCHEMA_VERSION
+    source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    result: ExtractionResult
+    circular: CircularExtraction | None = None
+    timings: list[PipelineStageTiming] = Field(default_factory=list)
+    sorter_raw_responses: list[str] = Field(default_factory=list)
+    page_count: int = Field(default=0, ge=0)
+    chunk_count: int = Field(default=0, ge=0)
+    degraded: bool = False
 
 
 CheckEvidenceValue = str | int | float | bool | None

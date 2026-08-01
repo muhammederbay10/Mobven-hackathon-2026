@@ -30,7 +30,8 @@ _FOLD = MappingProxyType(
 )
 
 _NON_WORD = re.compile(r"[^0-9a-z]+")
-_MASKED_ID = re.compile(r"\d{3}\*{6}\d{2}")  # mirrors MaskedNationalId in ai/schema.py
+_RAW_MASKED_ID = re.compile(r"(\d{3})\*+(\d{2})")
+_CANONICAL_MASK = "******"
 
 # Legal-form tokens, in normalized form, matched only as trailing token runs. Turkish company
 # forms are a closed set defined by the TTK, which is why a table beats a judgment here.
@@ -48,11 +49,6 @@ _COMPANY_SUFFIXES: tuple[tuple[str, ...], ...] = (
     ("ltd",),
     ("sti",),
     ("as",),
-    ("sanayi",),
-    ("san",),
-    ("ticaret",),
-    ("tic",),
-    ("ve",),
 )
 
 _MONTHS = MappingProxyType(
@@ -124,7 +120,20 @@ def strip_company_suffix(name: str) -> str:
             # A name made only of legal-form tokens keeps them: an empty core would match everything.
             break
         tokens = remaining
-    return " ".join(tokens)
+    return " ".join(_expand_company_abbreviations(tokens))
+
+
+def _expand_company_abbreviations(tokens: list[str]) -> list[str]:
+    """Expands activity abbreviations without deleting distinctive business-name words."""
+
+    expanded = list(tokens)
+    for index in range(len(expanded) - 2):
+        if expanded[index : index + 3] == ["san", "ve", "tic"]:
+            expanded[index : index + 3] = ["sanayi", "ve", "ticaret"]
+    for index in range(len(expanded) - 1):
+        if expanded[index : index + 2] == ["san", "tic"]:
+            expanded[index : index + 2] = ["sanayi", "ticaret"]
+    return expanded
 
 
 def _matching_suffix(tokens: list[str]) -> tuple[str, ...] | None:
@@ -152,9 +161,22 @@ def masked_id_equal(left: str | None, right: str | None) -> bool:
 
     if not (left and right):
         return False
-    if not (_MASKED_ID.fullmatch(left) and _MASKED_ID.fullmatch(right)):
+    left_canonical = canonicalize_masked_id(left)
+    right_canonical = canonicalize_masked_id(right)
+    if not (left_canonical and right_canonical):
         return False
-    return left == right
+    return left_canonical == right_canonical
+
+
+def canonicalize_masked_id(value: str | None) -> str | None:
+    """Normalizes a source mask to the frozen six-star API representation."""
+
+    if not value:
+        return None
+    match = _RAW_MASKED_ID.fullmatch(value.strip())
+    if not match:
+        return None
+    return f"{match[1]}{_CANONICAL_MASK}{match[2]}"
 
 
 def parse_tr_date(text: str) -> Date:
