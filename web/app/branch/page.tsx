@@ -1,4 +1,4 @@
-import { Card, PageHeading } from "@/components/Layout";
+import { Panel, PageHeading } from "@/components/Layout";
 import { EmptyState } from "@/components/States";
 
 /**
@@ -35,14 +35,14 @@ export default async function BranchPage({
         subtitle="Müşteri sirkülerin aslını şubeye getirir. Görevli kimliği ve belgenin aslını görür, tarar; sistem okur ve karşılaştırır."
       />
 
-      <Card className="overflow-hidden">
-        <ol className="flex border-b border-line">
+      <Panel className="overflow-hidden">
+        <ol className="flex border-b border-border">
           {STEPS.map((step) => (
             <li
               key={step.n}
-              className="flex flex-1 items-center gap-2.5 border-r border-line px-4 py-3 text-[13px] text-ink-3 last:border-r-0"
+              className="flex flex-1 items-center gap-2.5 border-r border-border px-4 py-3 text-[13px] text-ink-muted last:border-r-0"
             >
-              <span className="grid size-5 flex-none place-items-center rounded-full bg-line text-[11px] font-semibold text-ink-2">
+              <span className="grid size-5 flex-none place-items-center rounded-full bg-surface-subtle text-[11px] font-semibold text-ink-secondary">
                 {step.n}
               </span>
               {step.label}
@@ -61,7 +61,7 @@ export default async function BranchPage({
             hint="Başvuru numarası adres satırında taşınır; sayfa yenilense de ilerleme sunucudan geri gelir."
           />
         )}
-      </Card>
+      </Panel>
     </>
   );
 }

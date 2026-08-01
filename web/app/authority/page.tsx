@@ -1,13 +1,14 @@
-import { Card, PageHeading } from "@/components/Layout";
+import { Panel, PageHeading } from "@/components/Layout";
 import { EmptyState } from "@/components/States";
 
 /**
- * Empty state for the `/authority` segment.
+ * Landing state for the `/authority` segment.
  *
  * Not a sixth route (GAP-14). `/authority/[mersis]` is the frozen screen; this
- * file only gives the header's "Yetki kaydı" link somewhere to land before a
- * record exists, and holds no content of its own. Once an authority record has
- * been created, navigation goes straight to `/authority/{mersis}`.
+ * file only gives the sidebar's "Yetki Kaydı" item somewhere to land before any
+ * MERSİS is known — the sidebar itself must not guess one (DESIGN_SYSTEM.md
+ * section 7). Once an authority record exists, navigation goes straight to
+ * `/authority/{mersis}`.
  */
 
 export default function AuthorityIndexPage() {
@@ -17,12 +18,12 @@ export default function AuthorityIndexPage() {
         title="Yetki kaydı — banka tarafı"
         subtitle="Şube onayıyla oluşan yapılandırılmış yetki. Tüm kanallar bu kaydı sorgular."
       />
-      <Card>
+      <Panel>
         <EmptyState
           title="Henüz yetki kaydı yok."
           hint="Şubede bir başvuru onaylandığında kayıt burada görünür."
         />
-      </Card>
+      </Panel>
     </>
   );
 }

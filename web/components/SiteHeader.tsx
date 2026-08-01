@@ -1,62 +1,53 @@
 /**
- * Application header and route navigation.
+ * The compact top bar — DESIGN_SYSTEM.md section 8.
  *
- * The five routes are frozen (plan GAP-14): a sixth may be added only if it
- * replaces an existing one, and only before H30. Audit is a section of
- * `/authority`, and the co-signer view is a state of `/mobile` — neither gets
- * its own entry here.
+ * 54px, bottom border, breadcrumb on the left (with the mobile drawer trigger
+ * ahead of it below 768px), route-relevant actions on the right. No search box
+ * and no notification/settings icon: there is no real searchable content yet,
+ * and the constraints explicitly rule out dead controls added just to match
+ * the reference screenshot.
  */
 
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const ROUTES = [
-  { href: "/", label: "Demo kontrol", act: null },
-  { href: "/branch", label: "Şube", act: "1·" },
-  { href: "/mobile", label: "Mobil şube", act: "2·" },
-  { href: "/authority", label: "Yetki kaydı", act: null },
-  { href: "/registry", label: "Sicil (mock)", act: null },
-] as const;
+import { MenuIcon } from "./Icon";
+import { Breadcrumb, type BreadcrumbItem } from "./UI";
 
-export function SiteHeader() {
+const SECTION_LABEL: Array<{ prefix: string; label: string }> = [
+  { prefix: "/branch", label: "Şube İnceleme" },
+  { prefix: "/mobile", label: "Mobil İşlemler" },
+  { prefix: "/authority", label: "Yetki Kaydı" },
+  { prefix: "/registry", label: "Ticaret Sicili" },
+];
+
+function breadcrumbFor(pathname: string): BreadcrumbItem[] {
+  if (pathname === "/") return [{ label: "Ana Sayfa" }];
+  const section = SECTION_LABEL.find((entry) => pathname.startsWith(entry.prefix));
+  return [{ label: "Ana Sayfa", href: "/" }, { label: section?.label ?? pathname }];
+}
+
+export function SiteHeader({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
   const pathname = usePathname();
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
-
   return (
-    <header className="mb-[22px] flex flex-wrap items-center gap-5 border-b border-line py-3.5">
-      <Link href="/" className="flex items-center gap-2.5 text-[17px] font-semibold tracking-[-0.01em]">
-        <span className="grid size-[26px] place-items-center rounded-[7px] bg-brand text-[13px] font-bold text-white">
-          Y
-        </span>
-        YetkiCheck
-      </Link>
+    <header className="flex h-(--yc-topbar-height) flex-none items-center gap-3 border-b border-border px-5">
+      <button
+        type="button"
+        onClick={onOpenMobileNav}
+        aria-label="Menüyü aç"
+        className="grid size-9 flex-none place-items-center rounded-control border border-border-strong text-ink-secondary hover:bg-surface-hover md:hidden"
+      >
+        <MenuIcon />
+      </button>
 
-      {/* Section 14: simulated components stay visibly labeled, everywhere. */}
-      <span className="rounded-full border border-dashed border-line-strong px-2.5 py-0.5 text-xs text-ink-3">
-        demo — simüle edilmiş banka ortamı
-      </span>
+      <Breadcrumb items={breadcrumbFor(pathname)} />
 
-      <nav className="ml-auto flex flex-wrap gap-1" aria-label="Ekranlar">
-        {ROUTES.map((route) => (
-          <Link
-            key={route.href}
-            href={route.href}
-            aria-current={isActive(route.href) ? "page" : undefined}
-            className={
-              isActive(route.href)
-                ? "rounded-lg border border-line-strong bg-surface px-3.5 py-[7px] text-sm font-medium text-ink"
-                : "rounded-lg border border-transparent px-3.5 py-[7px] text-sm text-ink-2 hover:bg-surface"
-            }
-          >
-            {route.act ? <span className="mr-[3px] text-[10.5px] text-ink-3">{route.act}</span> : null}
-            {route.label}
-          </Link>
-        ))}
-      </nav>
+      <div className="ml-auto flex items-center gap-2">
+        {/* Route-relevant actions land here. Intentionally empty: no page yet
+            has a real primary action to place in the top bar. */}
+      </div>
     </header>
   );
 }

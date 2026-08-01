@@ -16,10 +16,12 @@ import type { ReactNode } from "react";
 
 import { ApiError } from "@/lib/api";
 
+import { Button } from "./UI";
+
 export function LoadingState({ label = "Yükleniyor…" }: { label?: string }) {
   return (
-    <div className="px-5 py-14 text-center text-sm text-ink-3" role="status" aria-live="polite">
-      <span className="mr-2 inline-block size-3 animate-pulse rounded-full bg-line-strong align-middle" />
+    <div className="px-5 py-14 text-center text-[13px] text-ink-muted" role="status" aria-live="polite">
+      <span className="mr-2 inline-block size-3 animate-pulse rounded-full bg-border-strong align-middle" />
       {label}
     </div>
   );
@@ -27,9 +29,9 @@ export function LoadingState({ label = "Yükleniyor…" }: { label?: string }) {
 
 export function EmptyState({ title, hint }: { title: string; hint?: ReactNode }) {
   return (
-    <div className="px-5 py-14 text-center text-sm text-ink-3">
+    <div className="px-5 py-14 text-center text-[13px] text-ink-muted">
       <div>{title}</div>
-      {hint ? <div className="mt-1 text-[13px]">{hint}</div> : null}
+      {hint ? <div className="mt-1 text-[12px]">{hint}</div> : null}
     </div>
   );
 }
@@ -57,26 +59,22 @@ export function ErrorState({
 
   return (
     <div className="px-5 py-12 text-center" role="alert">
-      <div className="mx-auto max-w-md rounded-[10px] border border-bad/30 bg-bad-bg px-4 py-4">
-        <div className="text-sm font-semibold text-bad">
+      <div className="mx-auto max-w-md rounded-panel border border-danger/30 bg-danger-soft px-4 py-4">
+        <div className="text-[13px] font-semibold text-danger">
           <span aria-hidden>× </span>
           {title ?? (retryable ? "İşlem tamamlanamadı" : "Bu işlem şu anda yapılamıyor")}
         </div>
-        <p className="mt-1.5 text-[13px] text-ink-2">{message}</p>
+        <p className="mt-1.5 text-[12.5px] text-ink-secondary">{message}</p>
 
         {retryable && onRetry ? (
-          <button
-            type="button"
-            onClick={onRetry}
-            className="mt-3 rounded-lg border border-line-strong bg-surface px-4 py-2 text-[13.5px] font-medium text-ink hover:bg-surface-2"
-          >
+          <Button type="button" variant="secondary" onClick={onRetry} className="mt-3">
             Tekrar dene
-          </button>
+          </Button>
         ) : null}
 
         {apiError?.correlationId ? (
           // Section 15: the correlation ID ties this screen to the server log.
-          <p className="mt-3 font-mono text-[11px] text-ink-3">
+          <p className="mt-3 font-mono text-[11px] text-ink-muted">
             İşlem no: {apiError.correlationId}
           </p>
         ) : null}

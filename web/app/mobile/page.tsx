@@ -35,7 +35,7 @@ export default function MobilePage() {
           />
         </PhoneFrame>
 
-        <div className="max-w-95 text-[13px] text-ink-2">
+        <div className="max-w-[380px] text-[13px] text-ink-secondary">
           <h3 className="mb-2 text-[13.5px] text-ink">Bu ekranda ne oluyor?</h3>
           <ul className="mb-4 list-disc pl-4">
             <li className="mb-1.5">

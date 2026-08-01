@@ -2,9 +2,11 @@
  * Status presentation primitives.
  *
  * Plan section 10.1: "Green/amber/red status is communicated by icon and text,
- * not color alone." Every component here pairs the color with a glyph and a
- * word, so the meaning survives a bad projector, a color-blind judge, and a
- * screenshot printed in greyscale.
+ * not color alone." DESIGN_SYSTEM.md section 3: semantic success/warning/danger
+ * are reserved for actual YetkiCheck outcomes and are never substituted by the
+ * decorative cyan/pink/violet accents. Every component here pairs the color
+ * with a glyph and a word, so the meaning survives a bad projector, a
+ * color-blind judge, and a screenshot printed in greyscale.
  *
  * None of these decide a status. They render one the API already returned.
  */
@@ -14,17 +16,17 @@ import type { ReactNode } from "react";
 import { CHECK_STATUS_LABEL, CHECK_STATUS_SYMBOL } from "@/lib/format";
 import type { CheckStatus } from "@/lib/types";
 
-const TONE: Record<CheckStatus, { icon: string; text: string; ring: string }> = {
-  GREEN: { icon: "bg-ok-bg text-ok", text: "text-ok", ring: "border-ok" },
-  AMBER: { icon: "bg-warn-bg text-warn", text: "text-warn", ring: "border-warn" },
-  RED: { icon: "bg-bad-bg text-bad", text: "text-bad", ring: "border-bad" },
+const TONE: Record<CheckStatus, { icon: string; text: string }> = {
+  GREEN: { icon: "bg-success-soft text-success", text: "text-success" },
+  AMBER: { icon: "bg-warning-soft text-warning", text: "text-warning" },
+  RED: { icon: "bg-danger-soft text-danger", text: "text-danger" },
 };
 
 /** A small round status glyph. Always accompanied by text from its caller. */
 export function StatusIcon({ status }: { status: CheckStatus }) {
   return (
     <span
-      className={`grid size-[19px] flex-none place-items-center rounded-full text-[11px] font-bold ${TONE[status].icon}`}
+      className={`grid size-4.75 flex-none place-items-center rounded-full text-[11px] font-bold ${TONE[status].icon}`}
       aria-hidden
     >
       {CHECK_STATUS_SYMBOL[status]}
@@ -36,7 +38,7 @@ export function StatusIcon({ status }: { status: CheckStatus }) {
 export function PendingIcon() {
   return (
     <span
-      className="grid size-[19px] flex-none place-items-center rounded-full bg-line text-[11px] font-bold text-ink-3"
+      className="grid size-4.75 flex-none place-items-center rounded-full bg-surface-subtle text-[11px] font-bold text-ink-muted"
       aria-hidden
     >
       ·
@@ -48,7 +50,7 @@ export function PendingIcon() {
 export function StatusBadge({ status, label }: { status: CheckStatus; label?: string }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${TONE[status].icon}`}
+      className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-0.5 text-xs font-medium ${TONE[status].icon}`}
     >
       <span aria-hidden>{CHECK_STATUS_SYMBOL[status]}</span>
       {label ?? CHECK_STATUS_LABEL[status]}
@@ -67,11 +69,17 @@ export function VerdictBanner({
   detail?: ReactNode;
 }) {
   const tone =
-    status === "GREEN" ? "bg-ok-bg text-ok" : status === "AMBER" ? "bg-warn-bg text-warn" : "bg-bad-bg text-bad";
+    status === "GREEN"
+      ? "bg-success-soft text-success"
+      : status === "AMBER"
+        ? "bg-warning-soft text-warning"
+        : "bg-danger-soft text-danger";
   return (
-    <div className={`flex items-center gap-3 border-b border-line px-[18px] py-3.5 text-sm ${tone}`}>
+    <div
+      className={`flex items-center gap-3 rounded-panel border border-border px-4 py-3.5 text-[13px] ${tone}`}
+    >
       <span
-        className="grid size-[22px] flex-none place-items-center rounded-full bg-black/[0.07] text-[13px] font-bold"
+        className="grid size-5.5 flex-none place-items-center rounded-full bg-black/[0.07] text-[13px] font-bold"
         aria-hidden
       >
         {CHECK_STATUS_SYMBOL[status]}
@@ -92,7 +100,7 @@ export function VerdictBanner({
  */
 export function SimBadge({ label = "simüle edilmiş" }: { label?: string }) {
   return (
-    <span className="ml-1.5 whitespace-nowrap rounded-full border border-line-strong px-[7px] text-[11px] font-normal text-ink-3">
+    <span className="ml-1.5 whitespace-nowrap rounded-pill border border-border-strong px-2 py-0.5 text-[11px] font-normal text-ink-muted">
       {label}
     </span>
   );

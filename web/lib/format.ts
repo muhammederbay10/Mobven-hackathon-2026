@@ -96,6 +96,20 @@ export const ONBOARDING_VERDICT_LABEL: Record<OnboardingVerdict, string> = {
   REGISTRY_CONFLICT: "Sicil kaydıyla çelişiyor",
 };
 
+/**
+ * Which of the three check colors represents each verdict, for a legend/badge
+ * — e.g. the control panel's case cards. This mirrors plan section 6.1's own
+ * precedence (CO_SIGNER_REQUIRED comes from an amber check; MISMATCH and
+ * REGISTRY_CONFLICT both come from a red one); it does not compute a verdict,
+ * only chooses a color for one the API already returned.
+ */
+export const ONBOARDING_VERDICT_STATUS: Record<OnboardingVerdict, CheckStatus> = {
+  READY: "GREEN",
+  CO_SIGNER_REQUIRED: "AMBER",
+  MISMATCH: "RED",
+  REGISTRY_CONFLICT: "RED",
+};
+
 export const TRANSACTION_VERDICT_LABEL: Record<TransactionVerdict, string> = {
   ALLOWED: "İşlem onaylandı",
   PENDING_COSIGN: "İkinci imza bekleniyor",

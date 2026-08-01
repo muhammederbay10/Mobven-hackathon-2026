@@ -1,4 +1,4 @@
-import { Card, PageHeading } from "@/components/Layout";
+import { Panel, PageHeading } from "@/components/Layout";
 import { EmptyState } from "@/components/States";
 import { SimBadge } from "@/components/Status";
 
@@ -27,18 +27,18 @@ export default function RegistryPage() {
         subtitle="Prototipte MERSİS yerine yerel mock servis. Üretimde kurumsal entegrasyon gerekir."
       />
 
-      <div className="mb-4.5 rounded-control bg-warn-bg px-4 py-3 text-[13.5px] text-warn">
+      <div className="mb-5 rounded-panel border border-warning/20 bg-warning-soft px-4 py-3 text-[13px] text-warning">
         <span aria-hidden>! </span>
         Bu ekran gerçek MERSİS değildir. Yetkiyi düşürdüğünüzde hem yeni başvuru hem de mobil işlem
         anında bloke olur.
       </div>
 
-      <Card className="overflow-hidden">
+      <Panel>
         <EmptyState
           title="Sicil tablosu henüz bağlanmadı."
           hint="Şirket ve temsilci listesi P2-04 ile gelir."
         />
-      </Card>
+      </Panel>
     </>
   );
 }
