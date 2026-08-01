@@ -1,0 +1,17 @@
+# YetkiCheck bank API (FastAPI + SQLite).
+# The AI service has its own requirements file, owned by the AI engineer.
+# Plan section 18.11: this track never installs, runs or edits ai/.
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.5
+pydantic-settings==2.7.1
+sqlmodel==0.0.22
+python-multipart==0.0.20      # multipart document upload
+httpx==0.28.1                 # typed client for the AI service
+PyMuPDF==1.25.2               # PDF page rendering to PNG (full-stack owned)
+Pillow==11.1.0                # JPG/PNG inspection and normalisation
+
+# --- development / verification --------------------------------------------
+pytest==8.3.4
+pytest-asyncio==0.25.2

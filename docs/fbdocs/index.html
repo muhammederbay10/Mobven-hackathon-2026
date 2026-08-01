@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YetkiCheck — demo mock</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --surface:#ffffff; --surface-2:#f8f9fb;
+    --border:#e3e7ee; --border-strong:#cdd4e0;
+    --text:#151a22; --text-2:#5d6878; --text-3:#8b95a5;
+    --brand:#12408f; --brand-bg:#e8effa;
+    --green:#12703f; --green-bg:#e7f4ec;
+    --amber:#8a5a00; --amber-bg:#fcf1de;
+    --red:#a92c22; --red-bg:#fbeae8;
+    --radius:10px;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.55}
+  button{font:inherit;cursor:pointer}
+  .app{max-width:1240px;margin:0 auto;padding:0 20px 60px}
+
+  header{display:flex;align-items:center;gap:20px;padding:14px 0;border-bottom:1px solid var(--border);margin-bottom:22px;flex-wrap:wrap}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:600;font-size:17px;letter-spacing:-.01em}
+  .logo .mark{width:26px;height:26px;border-radius:7px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700}
+  nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+  nav button{background:none;border:1px solid transparent;padding:7px 13px;border-radius:8px;color:var(--text-2);font-size:14px}
+  nav button:hover{background:var(--surface)}
+  nav button.on{background:var(--surface);border-color:var(--border-strong);color:var(--text);font-weight:500}
+  nav .act{font-size:10.5px;color:var(--text-3);margin-right:3px}
+  .demo-pill{font-size:12px;color:var(--text-3);border:1px dashed var(--border-strong);padding:3px 9px;border-radius:20px}
+
+  .screen{display:none}
+  .screen.on{display:block}
+  h2{font-size:19px;font-weight:600;margin:0 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--text-2);font-size:14px;margin:0 0 20px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px}
+  .sec-l{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);margin:0 0 10px}
+  .empty{padding:56px 20px;text-align:center;color:var(--text-3);font-size:14px}
+  .btn{padding:12px;border-radius:9px;border:none;background:var(--brand);color:#fff;font-weight:600;font-size:15px;width:100%}
+  .btn.ghost{background:var(--surface);color:var(--text);border:1px solid var(--border-strong);font-weight:500}
+  .btn:disabled{opacity:.4}
+  .sim{font-size:11px;color:var(--text-3);border:1px solid var(--border-strong);border-radius:20px;padding:0 7px;margin-left:6px;white-space:nowrap}
+
+  /* ---------- control ---------- */
+  .cases{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+  .case{padding:16px;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:12px;transition:.12s}
+  .case:hover{border-color:var(--brand);transform:translateY(-1px)}
+  .case .n{font-size:12px;color:var(--text-3);margin-bottom:6px}
+  .case .t{font-size:15px;font-weight:600;margin-bottom:6px}
+  .case .d{font-size:13px;color:var(--text-2);line-height:1.5}
+  .case .tag{display:inline-block;margin-top:11px;font-size:11.5px;padding:3px 9px;border-radius:20px;font-weight:500}
+  .flow{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px;font-size:13px;color:var(--text-2);align-items:center}
+  .flow span{background:var(--surface);border:1px solid var(--border);padding:6px 12px;border-radius:20px}
+  .flow .ar{color:var(--text-3)}
+  .skip{margin-top:18px;font-size:13px;color:var(--text-2)}
+  .skip button{margin-left:10px;padding:6px 13px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);font-size:13px}
+
+  /* ---------- branch intake ---------- */
+  .stepper{display:flex;gap:0;border-bottom:1px solid var(--border)}
+  .stepper div{flex:1;padding:13px 16px;font-size:13px;color:var(--text-3);border-right:1px solid var(--border);display:flex;gap:9px;align-items:center}
+  .stepper div:last-child{border:none}
+  .stepper div.on{color:var(--text);font-weight:500;background:var(--surface-2)}
+  .stepper div.done{color:var(--green)}
+  .stepper .num{width:20px;height:20px;border-radius:50%;background:var(--border);color:var(--text-2);display:grid;place-items:center;font-size:11px;font-weight:600;flex:none}
+  .stepper div.on .num{background:var(--brand);color:#fff}
+  .stepper div.done .num{background:var(--green-bg);color:var(--green)}
+  .intake{padding:22px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,340px);gap:26px}
+  @media(max-width:840px){.intake{grid-template-columns:1fr}}
+  label.f{display:block;font-size:12.5px;color:var(--text-2);margin:0 0 5px}
+  input.f{width:100%;padding:10px 12px;border:1px solid var(--border-strong);border-radius:8px;font:inherit;font-size:14px;margin-bottom:14px;background:var(--surface-2)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .attest{display:flex;gap:10px;align-items:flex-start;padding:13px 15px;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-2);margin-bottom:16px;cursor:pointer}
+  .attest input{margin-top:3px}
+  .attest .t{font-size:13.5px;font-weight:500}
+  .attest .d{font-size:12.5px;color:var(--text-2)}
+  .scanbox{border:2px dashed var(--border-strong);border-radius:12px;padding:30px 16px;text-align:center;color:var(--text-2);font-size:13.5px;background:var(--surface-2);margin-bottom:16px}
+  .scanbox .ic{font-size:30px;line-height:1;margin-bottom:8px;opacity:.45}
+  .bar{height:5px;background:var(--border);border-radius:4px;overflow:hidden;margin:14px 0}
+  .bar i{display:block;height:100%;width:0;background:var(--brand);transition:width .5s ease}
+  .aside{font-size:13px;color:var(--text-2);border-left:1px solid var(--border);padding-left:22px}
+  .aside h4{font-size:13.5px;color:var(--text);margin:0 0 7px}
+  .aside ul{margin:0 0 18px;padding-left:17px}
+  .aside li{margin-bottom:5px}
+
+  /* ---------- review ---------- */
+  .emp-head{display:flex;justify-content:space-between;align-items:center;padding:13px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px}
+  .emp-head .co{font-weight:600;font-size:15px}
+  .emp-head .meta{font-size:12.5px;color:var(--text-3)}
+  .banner{padding:13px 18px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--border);font-size:14px}
+  .banner .ic{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none;background:rgba(0,0,0,.07)}
+  .banner b{font-weight:600}
+  .banner.wait{background:var(--surface-2);color:var(--text-2)}
+  .banner.ok{background:var(--green-bg);color:var(--green)}
+  .banner.warn{background:var(--amber-bg);color:var(--amber)}
+  .banner.bad{background:var(--red-bg);color:var(--red)}
+  .split{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr)}
+  @media(max-width:900px){.split{grid-template-columns:1fr}}
+  .doc-pane{border-right:1px solid var(--border);background:var(--surface-2);padding:16px}
+  .doc-tabs{display:flex;gap:6px;margin-bottom:11px}
+  .doc-tabs button{font-size:12px;padding:4px 11px;border-radius:16px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2)}
+  .doc-tabs button.on{background:var(--text);color:#fff;border-color:var(--text)}
+  .paper{background:#fff;border:1px solid var(--border-strong);border-radius:6px;padding:22px 20px;font-family:Georgia,"Times New Roman",serif;font-size:11.5px;line-height:1.75;color:#2b3543;min-height:430px;position:relative}
+  .paper h4{text-align:center;font-size:13px;letter-spacing:.08em;margin:0 0 16px;font-weight:700}
+  .paper p{margin:0 0 11px;text-align:justify}
+  .paper .hl{background:#fff3c4;box-shadow:0 0 0 3px #fff3c4;border-radius:2px}
+  .paper .hl.flash{animation:fl 1.4s ease 2}
+  @keyframes fl{0%,100%{background:#fff3c4;box-shadow:0 0 0 3px #fff3c4}50%{background:#ffd84d;box-shadow:0 0 0 3px #ffd84d}}
+  .seal{position:absolute;right:22px;bottom:20px;width:74px;height:74px;border:2px solid #b7c0cf;border-radius:50%;display:grid;place-items:center;text-align:center;font-size:7.5px;color:#8b95a5;transform:rotate(-11deg);letter-spacing:.04em}
+  .doc-cap{font-size:12px;color:var(--text-3);margin-top:9px;display:flex;justify-content:space-between}
+  .res-pane{padding:18px}
+  .fields{width:100%;font-size:13.5px;border-collapse:collapse;margin-bottom:22px}
+  .fields td{padding:5px 0;vertical-align:top}
+  .fields td:first-child{color:var(--text-2);width:44%}
+  .fields tr{opacity:0;transform:translateY(-3px);transition:.35s}
+  .fields tr.in{opacity:1;transform:none}
+  .chip{display:inline-block;font-size:11px;padding:1px 8px;border-radius:20px;background:var(--amber-bg);color:var(--amber);margin-left:6px}
+  .checks{display:flex;flex-direction:column;gap:2px;margin-bottom:20px}
+  .chk{display:flex;gap:10px;padding:8px 9px;border-radius:8px;align-items:flex-start;opacity:0;transform:translateY(-3px);transition:.3s;cursor:pointer}
+  .chk.in{opacity:1;transform:none}
+  .chk:hover{background:var(--surface-2)}
+  .chk .ic{width:19px;height:19px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;flex:none;margin-top:1px}
+  .chk .ic.green{background:var(--green-bg);color:var(--green)}
+  .chk .ic.amber{background:var(--amber-bg);color:var(--amber)}
+  .chk .ic.red{background:var(--red-bg);color:var(--red)}
+  .chk .ic.pending{background:var(--border);color:var(--text-3)}
+  .chk .tx{font-size:13.5px;flex:1}
+  .chk .rs{font-size:12.5px;color:var(--text-2);margin-top:2px}
+  .chk .ev{display:none;margin-top:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-size:12px}
+  .chk.open .ev{display:block}
+  .chk .ev .row{display:flex;gap:8px;margin-bottom:3px}
+  .chk .ev .k{color:var(--text-3);min-width:86px}
+  .chk .ev .v{font-family:var(--mono);font-size:11.5px;color:var(--text)}
+  .actions{display:flex;gap:9px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--border)}
+  .actions button{padding:9px 15px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);font-size:13.5px}
+  .actions button.pri{background:var(--text);color:#fff;border-color:var(--text)}
+  .issued{margin-top:16px;border:1px solid var(--green);background:var(--green-bg);color:var(--green);border-radius:10px;padding:14px 16px;font-size:13px}
+  .issued b{font-weight:600}
+
+  /* ---------- phone ---------- */
+  .phone-wrap{display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap}
+  .phone{width:372px;flex:none;background:#0d1117;border-radius:34px;padding:11px;box-shadow:0 10px 34px rgba(15,25,45,.16)}
+  .phone-inner{background:var(--surface);border-radius:26px;overflow:hidden;min-height:640px;display:flex;flex-direction:column}
+  .p-bar{background:var(--brand);color:#fff;padding:13px 18px 15px}
+  .p-bar .b1{font-size:11px;opacity:.75}
+  .p-bar .b2{font-size:15px;font-weight:600;margin-top:1px}
+  .p-body{padding:18px;flex:1;display:flex;flex-direction:column}
+  .p-step{font-size:11.5px;color:var(--text-3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px}
+  .who{display:flex;gap:6px;margin-bottom:16px}
+  .who button{flex:1;padding:7px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);font-size:12.5px;color:var(--text-2)}
+  .who button.on{background:var(--text);color:#fff;border-color:var(--text)}
+  .who button .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--red);margin-left:5px}
+  .tx-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 13px;border:1px solid var(--border);border-radius:10px;margin-bottom:9px;cursor:pointer;transition:.12s}
+  .tx-item:hover{border-color:var(--brand);background:var(--surface-2)}
+  .tx-item .n{font-size:13.5px;font-weight:500}
+  .tx-item .m{font-size:11.5px;color:var(--text-3);margin-top:1px}
+  .tx-item .a{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+  .p-res{border-radius:12px;padding:16px;margin-bottom:14px}
+  .p-res.ok{background:var(--green-bg);color:var(--green)}
+  .p-res.warn{background:var(--amber-bg);color:var(--amber)}
+  .p-res.bad{background:var(--red-bg);color:var(--red)}
+  .p-res .ic{font-size:26px;line-height:1}
+  .p-res .t{font-weight:600;font-size:15.5px;margin:7px 0 3px}
+  .p-res .d{font-size:13px;line-height:1.5}
+  .p-list{font-size:12.5px;color:var(--text-2);display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+  .p-list div{display:flex;gap:8px;align-items:flex-start}
+  .p-list .m{width:15px;flex:none;text-align:center;font-weight:700}
+  .stamp{border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--surface-2);font-size:12px;color:var(--text-2);margin-bottom:14px}
+  .stamp b{color:var(--text);font-weight:600}
+  .stamp .id{font-family:var(--mono)}
+  .lat{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-3);border:1px solid var(--border);border-radius:20px;padding:2px 9px}
+  .push{border:1px solid var(--border-strong);border-radius:12px;padding:14px;background:var(--surface-2);margin-bottom:14px}
+  .push .h{font-size:11.5px;color:var(--text-3);margin-bottom:5px}
+  .push .t{font-size:13.5px;font-weight:500;margin-bottom:4px}
+  .push .d{font-size:12.5px;color:var(--text-2)}
+
+  /* ---------- authority ---------- */
+  .auth-head{padding:15px 16px;border-bottom:1px solid var(--border)}
+  .auth-head .t{font-weight:600;font-size:15px}
+  .auth-head .s{font-size:12.5px;color:var(--text-3);margin-top:3px}
+  .auth-body{padding:14px 16px}
+  .rule{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed var(--border);font-size:13px}
+  .rule:last-child{border:none}
+  .rule .l{color:var(--text-2)}
+  .rule .r{text-align:right;white-space:nowrap;font-weight:500}
+  .auth-grid{display:grid;grid-template-columns:minmax(0,430px) minmax(0,1fr);gap:18px;align-items:start}
+  @media(max-width:900px){.auth-grid{grid-template-columns:1fr}}
+  table.log{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.log th{text-align:left;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);font-weight:500;padding:11px 16px;border-bottom:1px solid var(--border)}
+  table.log td{padding:11px 16px;border-bottom:1px solid var(--border)}
+  .vb{font-size:12px;padding:3px 9px;border-radius:20px;font-weight:500;white-space:nowrap}
+  .vb.ok{background:var(--green-bg);color:var(--green)}
+  .vb.warn{background:var(--amber-bg);color:var(--amber)}
+  .vb.bad{background:var(--red-bg);color:var(--red)}
+
+  /* ---------- registry ---------- */
+  .reg-note{background:var(--amber-bg);color:var(--amber);border-radius:10px;padding:12px 16px;font-size:13.5px;margin-bottom:18px}
+  table.reg{width:100%;border-collapse:collapse;font-size:14px}
+  table.reg th{text-align:left;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);font-weight:500;padding:11px 16px;border-bottom:1px solid var(--border)}
+  table.reg td{padding:12px 16px;border-bottom:1px solid var(--border)}
+  .st{font-size:12px;padding:3px 10px;border-radius:20px;font-weight:500}
+  .st.a{background:var(--green-bg);color:var(--green)}
+  .st.r{background:var(--red-bg);color:var(--red)}
+  .tgl{font-size:12.5px;padding:5px 11px;border-radius:7px;border:1px solid var(--border-strong);background:var(--surface)}
+  .json{font-family:var(--mono);font-size:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;white-space:pre;overflow-x:auto;color:var(--text-2);margin-top:18px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<header>
+  <div class="logo"><span class="mark">Y</span> YetkiCheck</div>
+  <span class="demo-pill">mock — sunum prototipi</span>
+  <nav>
+    <button data-s="control" class="on">Demo kontrol</button>
+    <button data-s="branch"><span class="act">1·</span>Şube</button>
+    <button data-s="mobile"><span class="act">2·</span>Mobil şube</button>
+    <button data-s="authority">Yetki kaydı</button>
+    <button data-s="registry">Sicil (mock)</button>
+  </nav>
+</header>
+
+<!-- ================= CONTROL ================= -->
+<section class="screen on" id="s-control">
+  <h2>Demo senaryoları</h2>
+  <p class="sub">İmza sirkülerinin aslı yalnızca ilk seferde şubede görülür. Sonrasındaki tüm işlemler mobil şubeden, kayıtlı yetki üzerinden yürür.</p>
+  <div class="cases" id="caseList"></div>
+  <div class="flow">
+    <span>1 · Senaryo yükle</span><span class="ar">→</span>
+    <span>2 · Şube: aslını gör, tara, analiz</span><span class="ar">→</span>
+    <span>3 · Onayla → yetki kaydı oluşur</span><span class="ar">→</span>
+    <span>4 · Mobil şube: işlem yap</span><span class="ar">→</span>
+    <span>5 · Sicil: yetkiyi düşür, tekrar dene</span>
+  </div>
+  <div class="skip">Provada 2. perdeye atlamak için:
+    <button onclick="skipToAct2()">Yetki kaydını hazır kabul et</button></div>
+</section>
+
+<!-- ================= BRANCH (ACT 1) ================= -->
+<section class="screen" id="s-branch">
+  <h2>Şube — kurumsal başvuru ve ön kontrol</h2>
+  <p class="sub">Müşteri sirkülerin aslını şubeye getirir. Görevli kimliği ve belgenin aslını görür, tarar; sistem okur ve karşılaştırır.</p>
+  <div class="card" id="branchCard"><div class="empty">Demo kontrol ekranından bir senaryo yükleyin.</div></div>
+</section>
+
+<!-- ================= MOBILE (ACT 2) ================= -->
+<section class="screen" id="s-mobile">
+  <h2>Mobil şube — sonraki işlemler</h2>
+  <p class="sub">Belge bir daha istenmez. Her işlemde kayıtlı yetki sorgulanır: kişi, limit, konu, süre ve sicil durumu.</p>
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner">
+      <div class="p-bar"><div class="b1">ABC Teknoloji Ltd. Şti.</div><div class="b2" id="pTitle">Mobil şube</div></div>
+      <div class="p-body" id="mBody"></div>
+    </div></div>
+    <div class="aside" style="border:none;padding:0;max-width:380px">
+      <h4>Bu ekranda ne oluyor?</h4>
+      <ul>
+        <li>Belge yeniden okunmuyor — yalnızca yetki kaydı sorgulanıyor (~40 ms).</li>
+        <li>Limit aşımında ikinci imza, ikinci yetkilinin telefonuna düşüyor.</li>
+        <li>Yetki her işlemde yeniden doğrulanıyor; sicilde düşen yetki anında bloke oluyor.</li>
+      </ul>
+      <h4>Sahnede</h4>
+      <p>Telefon değiştirici ile Ayşe’nin ekranına geçip ikinci imzayı canlı atın.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= AUTHORITY ================= -->
+<section class="screen" id="s-authority">
+  <h2>Yetki kaydı — banka tarafı</h2>
+  <p class="sub">Şube onayıyla oluşan yapılandırılmış yetki. Tüm kanallar bu kaydı sorgular.</p>
+  <div class="auth-grid">
+    <div class="card" id="authCard"></div>
+    <div class="card" style="overflow:hidden">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border)" class="sec-l">İşlem geçmişi ve denetim izi</div>
+      <div id="logBox"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= REGISTRY ================= -->
+<section class="screen" id="s-registry">
+  <h2>Sicil kayıtları <span class="sim">simüle edilmiş</span></h2>
+  <p class="sub">Prototipte MERSİS yerine yerel mock servis. Üretimde kurumsal entegrasyon gerekir.</p>
+  <div class="reg-note">Vaka 4’ten önce ve 2. perdenin sonunda bu ekranı gösterin: yetkiyi düşürdüğünüzde hem yeni başvuru hem de mobil işlem anında bloke olur.</div>
+  <div class="card" style="overflow:hidden">
+    <table class="reg"><thead><tr><th>Şirket / temsilci</th><th>Kimlik</th><th>Yetki</th><th>Sicil durumu</th><th></th></tr></thead>
+    <tbody id="regBody"></tbody></table>
+  </div>
+  <div class="json" id="regJson"></div>
+</section>
+
+</div>
+
+<script>
+const CASES=[
+ {id:1,title:"Her şey uyumlu",tag:"Onaya hazır",tagCls:"ok",
+  desc:"Ali Yılmaz münferiden yetkili; başvuru, kimlik ve sicil kaydı belgeyle örtüşüyor.",
+  application:{company:"ABC Teknoloji Ltd. Şti.",tax:"1234567890",mersis:"0123456789000017",applicant:"Ali Yılmaz",tckn:"123******01"},
+  doc:"abc_sole",registryPatch:null},
+ {id:2,title:"Müşterek yetki",tag:"İkinci imza gerekli",tagCls:"warn",
+  desc:"Belge Ali Yılmaz ve Ayşe Demir’in birlikte imza atmasını şart koşuyor.",
+  application:{company:"ABC Teknoloji Ltd. Şti.",tax:"1234567890",mersis:"0123456789000017",applicant:"Ali Yılmaz",tckn:"123******01"},
+  doc:"abc_joint",registryPatch:null},
+ {id:3,title:"Başvuru uyuşmazlığı",tag:"Eşleşmiyor",tagCls:"bad",
+  desc:"Başvuru ABC Teknoloji için; getirilen sirküler başka bir şirkete ait ve başvuran belgede yok.",
+  application:{company:"ABC Teknoloji Ltd. Şti.",tax:"1234567890",mersis:"0123456789000017",applicant:"Mehmet Kaya",tckn:"456******07"},
+  doc:"zeta",registryPatch:null},
+ {id:4,title:"Geçerli belge, düşmüş yetki",tag:"Sicil çelişkisi",tagCls:"bad",
+  desc:"Belge gerçek ve Ali’yi yetkili gösteriyor — ancak sicilde temsilciliği sona ermiş.",
+  application:{company:"ABC Teknoloji Ltd. Şti.",tax:"1234567890",mersis:"0123456789000017",applicant:"Ali Yılmaz",tckn:"123******01"},
+  doc:"abc_sole",registryPatch:{mersis:"0123456789000017",person:"Ali Yılmaz",status:"REMOVED"}}
+];
+
+const DOCS={
+ abc_sole:{pages:2,company:"ABC Teknoloji Ltd. Şti.",tax:"1234567890",mersis:"0123456789000017",
+  reps:[{name:"Ali Yılmaz",tckn:"123******01",title:"Müdür",mode:"SOLE",joint:[]}],
+  validUntil:"15.03.2028",notary:{name:"Kadıköy 5. Noterliği",date:"15.03.2026",yevmiye:"08912"},
+  clause:"Şirketimizi temsil ve ilzama, Müdür Ali Yılmaz’ın münferiden atacağı imzası ile şirket unvanı altında iki yıl süreyle yetkili kılınmasına oy birliği ile karar verilmiştir."},
+ abc_joint:{pages:2,company:"ABC Teknoloji Ltd. Şti.",tax:"1234567890",mersis:"0123456789000017",
+  reps:[{name:"Ali Yılmaz",tckn:"123******01",title:"Müdür",mode:"JOINT",joint:["Ayşe Demir"]},
+        {name:"Ayşe Demir",tckn:"987******45",title:"Müdür",mode:"JOINT",joint:["Ali Yılmaz"]}],
+  validUntil:"15.03.2028",notary:{name:"Kadıköy 5. Noterliği",date:"15.03.2026",yevmiye:"08947"},
+  clause:"Şirketimizi temsil ve ilzama, Müdür Ali Yılmaz ile Müdür Ayşe Demir’in müştereken atacakları imzaları ile şirket unvanı altında yetkili kılınmalarına karar verilmiştir."},
+ zeta:{pages:2,company:"Zeta İnşaat A.Ş.",tax:"9876543210",mersis:"0987654321000023",
+  reps:[{name:"Kemal Öz",tckn:"555******22",title:"Yönetim Kurulu Üyesi",mode:"SOLE",joint:[]}],
+  validUntil:"01.09.2027",notary:{name:"Beşiktaş 12. Noterliği",date:"01.09.2025",yevmiye:"14203"},
+  clause:"Şirketimizi temsil ve ilzama, Yönetim Kurulu Üyesi Kemal Öz’ün münferiden atacağı imzası ile yetkili kılınmasına karar verilmiştir."}
+};
+
+let REGISTRY={
+ "0123456789000017":{name:"ABC Teknoloji Ltd. Şti.",status:"ACTIVE",reps:[
+   {name:"Ali Yılmaz",tckn:"123******01",mode:"SOLE",status:"ACTIVE"},
+   {name:"Ayşe Demir",tckn:"987******45",mode:"JOINT",status:"ACTIVE"}]},
+ "0987654321000023":{name:"Zeta İnşaat A.Ş.",status:"ACTIVE",reps:[
+   {name:"Kemal Öz",tckn:"555******22",mode:"SOLE",status:"ACTIVE"}]}
+};
+
+const AUTHORITY_TPL={
+ company:"ABC Teknoloji Ltd. Şti.",mersis:"0123456789000017",
+ source:{doc:"İmza sirküleri #IS-2041",notary:"Kadıköy 5. Noterliği · yev. 08912",verified:"15.03.2026",validUntil:"15.03.2028",channel:"Şube — aslı görüldü"},
+ persons:[{name:"Ali Yılmaz",tckn:"123******01",degree:"1. derece"},
+          {name:"Ayşe Demir",tckn:"987******45",degree:"1. derece"}],
+ rules:[{label:"Genel bankacılık işlemleri",max:500000,combo:"tek imza"},
+        {label:"Genel işlemler — 500.000 TL üzeri",max:null,combo:"çift imza"},
+        {label:"Kredi kullandırım",max:null,combo:"çift imza"},
+        {label:"Taşınmaz alım / rehin",max:0,combo:"yetki yok"}]
+};
+const TXN=[
+ {id:1,label:"EFT — tedarikçi ödemesi",subject:"general",amount:250000,ch:"Mobil şube"},
+ {id:2,label:"EFT — makine alımı",subject:"general",amount:1200000,ch:"Mobil şube"},
+ {id:3,label:"Kredi kullandırım talebi",subject:"credit",amount:750000,ch:"Mobil şube"},
+ {id:4,label:"Taşınmaz rehni tesisi",subject:"real_estate",amount:0,ch:"Mobil şube"}
+];
+const TL=n=>n.toLocaleString("tr-TR")+" TL";
+
+let state={case:null,step:0,scanned:false,attested:false,analyzed:false,page:1,approved:false,
+           phone:"Ali Yılmaz",view:"list",sel:null,cosigned:false,log:[]};
+
+/* ---------- normalization (mirrors tr_normalize) ---------- */
+const trLower=s=>(s||"").replace(/İ/g,"i").replace(/I/g,"ı").toLowerCase();
+const deAcc=s=>trLower(s).replace(/ş/g,"s").replace(/ğ/g,"g").replace(/ç/g,"c").replace(/ö/g,"o").replace(/ü/g,"u").replace(/ı/g,"i").replace(/â/g,"a");
+const stripSuffix=s=>deAcc(s).replace(/\b(ltd\.?|limited|sti\.?|sirketi|a\.?s\.?|anonim)\b/g,"").replace(/[.,]/g," ").replace(/\s+/g," ").trim();
+const digits=s=>(s||"").replace(/\D/g,"");
+const nameEq=(a,b)=>deAcc(a).replace(/\s+/g," ").trim()===deAcc(b).replace(/\s+/g," ").trim();
+
+/* ---------- act 1: document vs sources ---------- */
+function analyze(c){
+  const d=DOCS[c.doc], app=c.application, reg=REGISTRY[app.mersis];
+  const out=[]; const add=(id,status,title,reason,ev)=>out.push({id,status,title,reason,ev:ev||null});
+  add("company_name_match", stripSuffix(app.company)===stripSuffix(d.company)?"green":"red",
+    "Şirket unvanı başvuruyla eşleşiyor",
+    stripSuffix(app.company)===stripSuffix(d.company)?"Unvan, hukuki ek farkları normalize edilerek eşleşti."
+      :`Başvuru “${app.company}”, belge “${d.company}” şirketine ait.`,
+    {"Başvuru":app.company,"Belge":d.company});
+  add("tax_number_match", digits(app.tax)===digits(d.tax)?"green":"red","Vergi numarası eşleşiyor",
+    digits(app.tax)===digits(d.tax)?"10 haneli VKN birebir aynı.":"Başvurudaki VKN belgedekinden farklı.",
+    {"Başvuru":app.tax,"Belge":d.tax});
+  add("mersis_number_match", digits(app.mersis)===digits(d.mersis)?"green":"red","MERSİS numarası eşleşiyor",
+    digits(app.mersis)===digits(d.mersis)?"16 haneli MERSİS no birebir aynı.":"MERSİS numaraları farklı şirketleri işaret ediyor.",
+    {"Başvuru":app.mersis,"Belge":d.mersis});
+  const me=d.reps.find(r=>nameEq(r.name,app.applicant));
+  add("applicant_in_document", me?"green":"red","Başvuran belgede temsilci olarak yer alıyor",
+    me?`${me.name} (${me.title}) sirkülerde temsilci olarak listelenmiş.`
+      :`${app.applicant} belgedeki temsilciler arasında yok: ${d.reps.map(r=>r.name).join(", ")}.`,
+    {"Başvuran":app.applicant,"Belgedeki":d.reps.map(r=>r.name).join(", ")});
+  add("identity_match", me&&me.tckn===app.tckn?"green":(me?"amber":"red"),"Şubede ibraz edilen kimlik temsilciyle örtüşüyor",
+    me&&me.tckn===app.tckn?"Kimlik kartı ile belge bilgileri tutarlı."
+      :(me?"Ad eşleşti, kimlik numarası doğrulanamadı — manuel kontrol.":"İbraz edilen kimlik belgede bulunamadı."),
+    {"Kimlik (şube)":app.tckn,"Belgede":me?me.tckn:"—"});
+  if(!me) add("authority_mode","amber","Yetki türü değerlendirilemedi","Başvuran belgede yer almadığı için imza yetkisi türü uygulanamıyor.");
+  else if(me.mode==="JOINT") add("authority_mode","amber","Müşterek yetki — ikinci imza gerekli",
+    `Belge, ${me.name} ile ${me.joint.join(" / ")} imzalarının birlikte atılmasını şart koşuyor.`,
+    {"Yetki türü":"müştereken","Eksik imza":me.joint.join(", ")});
+  else add("authority_mode","green","Münferit imza yetkisi","Belge, başvuranın tek başına temsil ve ilzama yetkili olduğunu belirtiyor.",
+    {"Yetki türü":"münferiden","Kaynak":"yetki cümlesi, s.1"});
+  add("registry_status", reg&&reg.status==="ACTIVE"?"green":"red","Şirket sicilde faal",
+    reg?`Sicil kaydı: ${reg.status==="ACTIVE"?"faal":"faal değil"}.`:"Şirket sicil kaydı bulunamadı.",null);
+  const rr=reg?reg.reps.find(r=>nameEq(r.name,app.applicant)):null;
+  const regOk=rr&&rr.status==="ACTIVE";
+  add("registry_representative_match", regOk?"green":"red","Sicil: başvuran güncel temsilci",
+    regOk?"Sicil kaydı belgedeki yetkiyi doğruluyor."
+      :(rr?"Sicilde temsilciliği sona ermiş (12.06.2026). Belge yetki veriyor, sicil vermiyor."
+          :`${app.applicant} şirketin sicil kayıtlarında temsilci olarak görünmüyor.`),
+    {"Belge":"yetkili","Sicil":rr?(rr.status==="ACTIVE"?"yetkili":"kayıttan çıkarılmış"):"kayıt yok"});
+  const vy=parseInt(d.validUntil.slice(-4),10);
+  add("document_validity", vy>=2026?"green":"red","Belge geçerlilik süresi devam ediyor",
+    `Sirküler ${d.validUntil} tarihine kadar geçerli.`,null);
+  let verdict="READY";
+  const bad=id=>out.find(c=>c.id===id).status==="red";
+  if(bad("company_name_match")||bad("tax_number_match")||bad("mersis_number_match")||bad("applicant_in_document")) verdict="MISMATCH";
+  else if(bad("registry_status")||bad("registry_representative_match")) verdict="REGISTRY_CONFLICT";
+  else if(out.find(c=>c.id==="authority_mode").status==="amber") verdict="CO_SIGNER_REQUIRED";
+  return {checks:out,verdict:verdict,doc:d};
+}
+const VERDICT={
+ READY:{cls:"ok",ic:"✓",t:"Onaya hazır",d:"Tüm kontroller uyumlu — görevli onayı bekleniyor."},
+ CO_SIGNER_REQUIRED:{cls:"warn",ic:"!",t:"İkinci imza gerekli",d:"Belge müşterek temsil şart koşuyor; tek imza yeterli değil."},
+ MISMATCH:{cls:"bad",ic:"×",t:"Başvuru ile belge eşleşmiyor",d:"Getirilen sirküler bu başvuruya ait değil."},
+ REGISTRY_CONFLICT:{cls:"bad",ic:"×",t:"Sicil çelişkisi — manuel inceleme",d:"Belge yetki veriyor, sicil kaydı bu yetkiyi doğrulamıyor."}
+};
+
+/* ---------- act 2: stored authority vs transaction ---------- */
+function decide(t,by){
+  const A=AUTHORITY_TPL, reg=REGISTRY[A.mersis];
+  const out=[]; const add=(s,ti,rs)=>out.push({status:s,title:ti,reason:rs});
+  const p=A.persons.find(x=>nameEq(x.name,by));
+  const rr=reg.reps.find(x=>nameEq(x.name,by));
+  const active=rr&&rr.status==="ACTIVE";
+  add(p?"green":"red","Kişi yetki kaydında tanımlı",
+    p?`${p.name} · ${p.degree} · kaynak: ${A.source.doc}`:"Kişi bu şirketin yetki kaydında yok.");
+  add(active?"green":"red","Yetki hâlen geçerli (sicil)",
+    active?"Sicil kaydı temsilciliği doğruluyor.":"Temsilcilik sona ermiş — kayıtlı yetki askıya alındı.");
+  add("green","Sirküler süresi devam ediyor",`${A.source.validUntil} tarihine kadar geçerli.`);
+  let verdict="ALLOWED", need=null;
+  if(!p||!active) verdict="DENIED";
+  else if(t.subject==="real_estate"){verdict="DENIED";
+    add("red","İşlem konusu yetki kapsamı dışında","Taşınmaz işlemleri sirkülerde kapsam dışı; ortaklar kurulu kararı gerekir.");}
+  else if(t.subject==="credit"){verdict="SECOND";need="Ayşe Demir";
+    add("amber","Konu bazlı kural: kredi","Kredi işlemleri her tutarda çift imza gerektiriyor.");}
+  else if(t.amount>500000){verdict="SECOND";need="Ayşe Demir";
+    add("amber","Tutar tek imza limitini aşıyor",`${TL(t.amount)} > ${TL(500000)} — ikinci imza gerekli.`);}
+  else add("green","Tutar tek imza limiti içinde",`${TL(t.amount)} ≤ ${TL(500000)}`);
+  if(verdict==="SECOND"&&state.cosigned){verdict="ALLOWED";
+    add("green","İkinci imza alındı",`${need} · mobil onay · ${new Date().toLocaleTimeString("tr-TR")}`);}
+  return {checks:out,verdict:verdict,need:need};
+}
+
+/* ---------- navigation ---------- */
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>go(b.dataset.s));
+function go(s){
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.s===s));
+  document.querySelectorAll(".screen").forEach(x=>x.classList.toggle("on",x.id==="s-"+s));
+  if(s==="registry") renderRegistry();
+  if(s==="mobile") renderMobile();
+  if(s==="authority") renderAuthority();
+  if(s==="branch") renderBranch();
+  window.scrollTo(0,0);
+}
+
+/* ---------- control ---------- */
+document.getElementById("caseList").innerHTML=CASES.map(c=>`
+ <button class="case" onclick="loadCase(${c.id})">
+   <div class="n">Vaka ${c.id}</div><div class="t">${c.title}</div><div class="d">${c.desc}</div>
+   <span class="tag" style="background:${c.tagCls==='ok'?'var(--green-bg)':c.tagCls==='warn'?'var(--amber-bg)':'var(--red-bg)'};color:${c.tagCls==='ok'?'var(--green)':c.tagCls==='warn'?'var(--amber)':'var(--red)'}">${c.tag}</span>
+ </button>`).join("");
+
+function loadCase(id){
+  state={...state,case:CASES.find(c=>c.id===id),step:0,scanned:false,attested:false,analyzed:false,
+         page:1,approved:false,view:"list",sel:null,cosigned:false,log:[],phone:"Ali Yılmaz"};
+  Object.values(REGISTRY).forEach(co=>co.reps.forEach(r=>r.status="ACTIVE"));
+  const p=state.case.registryPatch;
+  if(p){const r=REGISTRY[p.mersis].reps.find(x=>x.name===p.person); if(r) r.status=p.status;}
+  renderBranch(); go("branch");
+}
+function skipToAct2(){
+  state={...state,case:CASES[0],approved:true,step:2,analyzed:true,view:"list",sel:null,cosigned:false,log:[]};
+  Object.values(REGISTRY).forEach(co=>co.reps.forEach(r=>r.status="ACTIVE"));
+  go("mobile");
+}
+
+/* ---------- branch (act 1) ---------- */
+function renderBranch(){
+  const card=document.getElementById("branchCard");
+  if(!state.case){card.innerHTML=`<div class="empty">Demo kontrol ekranından bir senaryo yükleyin.</div>`;return;}
+  const a=state.case.application, d=DOCS[state.case.doc];
+  const st=(i,label)=>`<div class="${state.step===i?'on':(state.step>i?'done':'')}">
+     <span class="num">${state.step>i?'✓':i+1}</span>${label}</div>`;
+  let body="";
+  if(state.step===0){
+    body=`<div class="intake"><div>
+      <div class="sec-l">Başvuru bilgileri</div>
+      <label class="f">Şirket unvanı</label><input class="f" value="${a.company}">
+      <div class="row2"><div><label class="f">Vergi numarası</label><input class="f" value="${a.tax}"></div>
+        <div><label class="f">MERSİS numarası</label><input class="f" value="${a.mersis}"></div></div>
+      <div class="row2"><div><label class="f">Başvuran</label><input class="f" value="${a.applicant}"></div>
+        <div><label class="f">T.C. kimlik no</label><input class="f" value="${a.tckn}"></div></div>
+      <label class="attest" onclick="setTimeout(()=>{state.attested=document.getElementById('at1').checked;renderBranch()},0)">
+        <input type="checkbox" id="at1" ${state.attested?"checked":""}>
+        <span><span class="t">Müşteri şubede, kimlik aslı ibraz edildi</span>
+        <span class="d">T.C. kimlik kartı görüldü ve başvuru bilgileri yüz yüze teyit edildi.</span></span></label>
+      <button class="btn" ${state.attested?"":"disabled"} onclick="state.step=1;renderBranch()">Belge taramaya geç</button>
+    </div><div class="aside">
+      <h4>Neden şubede?</h4>
+      <ul><li>İmza sirkülerinin <b>aslı</b> noter onaylıdır; ilk tesiste fiziksel olarak görülmesi gerekir.</li>
+      <li>Kimlik tespiti yüz yüze yapılır.</li>
+      <li>Bu adım yalnızca <b>bir kez</b> yaşanır — sonrasındaki tüm işlemler mobil şubeden yürür.</li></ul>
+      <h4>Gerçek olan</h4><p>Form verisi ve taranan belge analize gider; kimlik doğrulama simüle edilmiştir.</p>
+    </div></div>`;
+  } else if(state.step===1){
+    body=`<div class="intake"><div>
+      <div class="sec-l">Belge tarama</div>
+      ${state.scanned?`
+        <div style="border:1px solid var(--border);border-radius:10px;padding:14px;background:#fff;margin-bottom:14px">
+          <div style="font-family:Georgia,serif;font-size:9px;line-height:1.6;color:#33404f">
+          <b>İMZA SİRKÜLERİ</b><br>${d.company}<br>VKN ${d.tax} · MERSİS ${d.mersis}<br><br>${d.clause.slice(0,150)}…</div></div>
+        <div style="font-size:12.5px;color:var(--green);margin-bottom:14px">✓ ${d.pages} sayfa tarandı · 300 dpi · okunabilirlik uygun</div>
+        <label class="attest" onclick="setTimeout(()=>{state.scanOk=document.getElementById('at2').checked;renderBranch()},0)">
+          <input type="checkbox" id="at2" ${state.scanOk?"checked":""}>
+          <span><span class="t">Belgenin aslı görüldü ve tarandı</span>
+          <span class="d">Noter onaylı asıl nüsha şubede ibraz edilmiştir.</span></span></label>
+        <button class="btn" ${state.scanOk?"":"disabled"} onclick="state.step=2;renderBranch()">Analize gönder</button>`
+      :`<div class="scanbox"><div class="ic">▤</div>Belgeyi tarayıcıya yerleştirip taramayı başlatın<br>
+          <span style="font-size:12px;color:var(--text-3)">Şube tarayıcısı · çift taraflı · 300 dpi</span></div>
+        <div class="bar"><i id="scBar"></i></div>
+        <button class="btn" onclick="runScan()">Taramayı başlat</button>`}
+    </div><div class="aside">
+      <h4>Şube tarayıcısı</h4>
+      <ul><li>Belge bankanın belge yönetim sistemine kaydedilir.</li>
+      <li>Aynı belge daha sonra müşteriden bir daha istenmez.</li></ul>
+    </div></div>`;
+  } else {
+    body=reviewHTML();
+  }
+  card.innerHTML=`<div class="stepper">${st(0,"Başvuru ve kimlik")}${st(1,"Belge tarama")}${st(2,"Yapay zekâ ön kontrolü")}</div>${body}`;
+  if(state.step===2&&!state.analyzed) runAnalysis();
+  if(state.step===2&&state.analyzed) paintReview();
+}
+function runScan(){
+  const b=document.getElementById("scBar");
+  setTimeout(()=>b.style.width="45%",300);
+  setTimeout(()=>b.style.width="100%",900);
+  setTimeout(()=>{state.scanned=true;renderBranch()},1400);
+}
+
+function reviewHTML(){
+  const a=state.case.application, d=DOCS[state.case.doc];
+  return `
+   <div class="emp-head">
+     <div><span class="co">${a.company}</span> <span class="meta">· Başvuru #2041 · kurumsal hesap tesisi</span></div>
+     <div class="meta">Başvuran: ${a.applicant} · şube: Kozyatağı</div>
+   </div>
+   <div id="bannerSlot"><div class="banner wait"><span class="ic">…</span>
+     <span>Belge tarandı — analiz ediliyor.</span></div></div>
+   <div class="split">
+     <div class="doc-pane">
+       <div class="doc-tabs">${[1,2].map(p=>`<button class="${p===state.page?'on':''}" onclick="state.page=${p};renderBranch()">Sayfa ${p}</button>`).join("")}</div>
+       ${paper(d)}
+       <div class="doc-cap"><span>İmza sirküleri · ${d.pages} sayfa · şube taraması</span><span>${d.notary.date}</span></div>
+     </div>
+     <div class="res-pane" id="resPane"><div class="empty" style="padding:40px 10px">Belge okunuyor…</div></div>
+   </div>`;
+}
+function paper(d){
+  if(state.page===2) return `<div class="paper"><h4>TATBİK İMZALARI</h4>
+    ${d.reps.map(r=>`<p style="margin-bottom:26px"><b>${r.name}</b> — ${r.title}<br>
+      <span style="color:#9aa4b2">I. ______________  II. ______________  III. ______________</span></p>`).join("")}
+    <p style="margin-top:30px">İşbu imza sirküleri, ${d.notary.name}’nce ${d.notary.date} tarih ve ${d.notary.yevmiye} yevmiye numarası ile onaylanmıştır.</p>
+    <div class="seal">T.C.<br>${d.notary.name.split(" ")[0].toUpperCase()}<br>NOTERLİĞİ</div></div>`;
+  return `<div class="paper"><h4>İMZA SİRKÜLERİ</h4>
+   <p><b>${d.company}</b><br>Ticaret Sicil No: 4471${d.tax.slice(0,2)} · Vergi Dairesi: Kozyatağı<br>VKN: ${d.tax} · MERSİS: ${d.mersis}</p>
+   <p>Şirket ortaklar kurulunun ${d.notary.date} tarih ve 2026/3 sayılı kararı, ${d.notary.name}’nce onaylanmış olup, Türkiye Ticaret Sicili Gazetesi’nde ilan edilmiştir.</p>
+   <p><span class="hl${state.analyzed?' flash':''}">${d.clause}</span></p>
+   <p>İşbu sirküler ${d.validUntil} tarihine kadar geçerlidir. Ortaklar kurulunca aksi karar alınması hâlinde yetkiler kendiliğinden sona erer.</p>
+   <div class="seal">T.C.<br>${d.notary.name.split(" ")[0].toUpperCase()}<br>NOTERLİĞİ</div></div>`;
+}
+
+function runAnalysis(){ setTimeout(()=>{state.analyzed=true;paintReview(true)},1400); }
+
+function paintReview(animate){
+  const r=analyze(state.case), d=r.doc, pane=document.getElementById("resPane");
+  if(!pane) return;
+  pane.innerHTML=`
+   <div class="sec-l">Çıkarılan alanlar</div>
+   <table class="fields"><tbody id="fRows"></tbody></table>
+   <div class="sec-l">Kontroller</div>
+   <div class="checks" id="cRows"></div>
+   <div class="actions">
+     <button class="pri" onclick="approve()">Onayla ve yetki kaydı oluştur</button>
+     <button>Alanı düzelt</button><button>Yeni belge iste</button><button>İncelemeye gönder</button>
+   </div><div id="issuedSlot"></div>`;
+  const rows=[["Şirket",d.company],["Vergi numarası",d.tax],["MERSİS",d.mersis],
+    ["Temsilci"+(d.reps.length>1?"ler":""),d.reps.map(x=>`${x.name} · ${x.mode==="SOLE"?"münferiden":"müştereken"}`).join("<br>")],
+    ["Geçerlilik",d.validUntil],["Noter",`${d.notary.name} · yev. ${d.notary.yevmiye}`],
+    ["İnceleme gerektiren",'<span class="chip">imza örnekleri okunamadı</span>']];
+  const fb=document.getElementById("fRows");
+  fb.innerHTML=rows.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td></tr>`).join("");
+  const cb=document.getElementById("cRows");
+  cb.innerHTML=r.checks.map((c,i)=>`
+    <div class="chk" id="chk${i}" onclick="this.classList.toggle('open')">
+      <span class="ic ${animate?'pending':c.status}">${animate?'○':(c.status==="green"?"✓":c.status==="amber"?"!":"×")}</span>
+      <span class="tx"><span>${c.title}</span>${c.id.startsWith("registry")?'<span class="sim">simüle</span>':""}
+        <div class="rs" style="${animate?'display:none':''}">${c.reason}</div>
+        ${c.ev?`<div class="ev">${Object.entries(c.ev).map(([k,v])=>`<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join("")}</div>`:""}
+      </span></div>`).join("");
+  const banner=v=>document.getElementById("bannerSlot").innerHTML=
+    `<div class="banner ${v.cls}"><span class="ic">${v.ic}</span><b>${v.t}</b><span>${v.d}</span></div>`;
+  if(!animate){
+    [...fb.children].forEach(t=>t.classList.add("in"));
+    [...cb.children].forEach(e=>e.classList.add("in"));
+    banner(VERDICT[r.verdict]);
+    if(state.approved) showIssued();
+    return;
+  }
+  [...fb.children].forEach((tr,i)=>setTimeout(()=>tr.classList.add("in"),i*160));
+  const start=rows.length*160+250;
+  r.checks.forEach((c,i)=>setTimeout(()=>{
+    const el=document.getElementById("chk"+i); if(!el) return;
+    el.classList.add("in");
+    const ic=el.querySelector(".ic");
+    ic.className="ic "+c.status; ic.textContent=c.status==="green"?"✓":c.status==="amber"?"!":"×";
+    el.querySelector(".rs").style.display="block";
+  },start+i*520));
+  setTimeout(()=>{banner(VERDICT[r.verdict]);
+    const hl=document.querySelector(".paper .hl"); if(hl) hl.classList.add("flash");},
+    start+r.checks.length*520+200);
+}
+function approve(){
+  const r=analyze(state.case);
+  if(r.verdict!=="READY"&&!confirm("Kontroller temiz değil. Yine de onaylansın mı? (demo)")) return;
+  state.approved=true; showIssued();
+}
+function showIssued(){
+  const s=document.getElementById("issuedSlot"); if(!s) return;
+  s.innerHTML=`<div class="issued"><b>Yetki kaydı oluşturuldu</b> · ABC Teknoloji Ltd. Şti.<br>
+    Kaynak: ${AUTHORITY_TPL.source.doc} · şube onayı ${AUTHORITY_TPL.source.verified}<br>
+    Bundan sonraki işlemlerde belge yeniden istenmez — mobil şube aktif.
+    <div style="margin-top:10px"><button class="tgl" onclick="go('mobile')">Mobil şubeye geç →</button></div></div>`;
+}
+
+/* ---------- mobile (act 2) ---------- */
+function renderMobile(){
+  const b=document.getElementById("mBody"), t=document.getElementById("pTitle");
+  const pending=state.sel&&!state.cosigned&&state.view==="result"&&decide(TXN.find(x=>x.id===state.sel),"Ali Yılmaz").verdict==="SECOND";
+  if(!state.approved){
+    t.textContent="Mobil şube";
+    b.innerHTML=`<div class="empty" style="padding:70px 10px">Bu şirket için yetki kaydı yok.<br>
+      <span style="font-size:13px">Önce şubede imza sirküleri doğrulanmalı.</span>
+      <div style="margin-top:18px"><button class="btn ghost" onclick="go('branch')">Şube ekranına git</button></div></div>`;
+    return;
+  }
+  const who=`<div class="who">
+    <button class="${state.phone==="Ali Yılmaz"?"on":""}" onclick="state.phone='Ali Yılmaz';state.view='list';renderMobile()">Ali’nin telefonu</button>
+    <button class="${state.phone==="Ayşe Demir"?"on":""}" onclick="state.phone='Ayşe Demir';renderMobile()">Ayşe’nin telefonu${pending?'<span class="dot"></span>':''}</button></div>`;
+  t.textContent=state.phone;
+
+  if(state.phone==="Ayşe Demir"){
+    b.innerHTML=who+(pending?cosignHTML():`<div class="p-step">Bildirimler</div>
+      <div class="empty" style="padding:50px 6px">Bekleyen onay yok.</div>`);
+    return;
+  }
+  if(state.view==="list"){
+    b.innerHTML=who+`<div class="p-step">Yeni işlem</div>`+
+      TXN.map(t=>`<div class="tx-item" onclick="startTxn(${t.id})">
+        <div><div class="n">${t.label}</div><div class="m">${t.ch}</div></div>
+        <div class="a">${t.amount?TL(t.amount):"—"}</div></div>`).join("")+
+      `<div style="flex:1"></div><div class="stamp">Yetki kaydı: ${AUTHORITY_TPL.source.doc}<br>
+        Şubede doğrulandı ${AUTHORITY_TPL.source.verified} · belge yeniden istenmez.</div>`;
+    return;
+  }
+  if(state.view==="processing"){
+    b.innerHTML=who+`<div class="empty" style="padding:80px 10px">Yetki sorgulanıyor…</div>`;
+    return;
+  }
+  b.innerHTML=who+resultHTML();
+}
+function startTxn(id){state.sel=id;state.cosigned=false;state.view="processing";renderMobile();
+  setTimeout(()=>{state.view="result";renderMobile()},600);}
+function cosignHTML(){
+  const t=TXN.find(x=>x.id===state.sel);
+  return `<div class="p-step">Onay bekleyen işlem</div>
+    <div class="push"><div class="h">YetkiCheck · az önce</div>
+      <div class="t">İkinci imza talebi</div>
+      <div class="d">${t.label} · ${TL(t.amount)}<br>Talep eden: Ali Yılmaz</div></div>
+    <div class="p-list">
+      <div><span class="m">i</span><span>Bu işlem tek imza limitinin üzerinde olduğu için sizin onayınız gerekiyor.</span></div></div>
+    <button class="btn" onclick="doCosign()">Onayla ve imzala</button>
+    <div style="height:9px"></div><button class="btn ghost" onclick="state.phone='Ali Yılmaz';renderMobile()">Reddet</button>`;
+}
+function doCosign(){state.cosigned=true;state.phone="Ali Yılmaz";state.view="result";renderMobile();}
+function resultHTML(){
+  const t=TXN.find(x=>x.id===state.sel), d=decide(t,"Ali Yılmaz");
+  const V={ALLOWED:{cls:"ok",ic:"✓",t:"İşlem onaylandı",d:"Yetki doğrulandı, işlem akışa alındı."},
+           SECOND:{cls:"warn",ic:"!",t:"İkinci imza bekleniyor",d:"Ayşe Demir’in telefonuna onay bildirimi gönderildi."},
+           DENIED:{cls:"bad",ic:"×",t:"İşlem gerçekleştirilemedi",d:"Kayıtlı yetkiniz bu işlemi kapsamıyor."}}[d.verdict];
+  logTxn(t,d);
+  return `<div class="p-res ${V.cls}"><div class="ic">${V.ic}</div><div class="t">${V.t}</div><div class="d">${V.d}</div></div>
+   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px">
+     <div><div style="font-size:13.5px;font-weight:500">${t.label}</div>
+       <div style="font-size:12px;color:var(--text-3)">${t.amount?TL(t.amount):"—"}</div></div>
+     <span class="lat">◷ 42 ms</span></div>
+   <div class="p-list">${d.checks.map(c=>`<div><span class="m" style="color:${c.status==='green'?'var(--green)':c.status==='amber'?'var(--amber)':'var(--red)'}">${c.status==="green"?"✓":c.status==="amber"?"!":"×"}</span>
+     <span>${c.title}<br><span style="color:var(--text-3)">${c.reason}</span></span></div>`).join("")}</div>
+   ${d.verdict==="ALLOWED"?`<div class="stamp"><b>Dijital yetki onayı</b> · <span class="id">#A-${7700+t.id*7}</span><br>
+      Kaynak: ${AUTHORITY_TPL.source.doc}<br>Belge yeniden okunmadı; şube doğrulaması ${AUTHORITY_TPL.source.verified}.</div>`:""}
+   ${d.verdict==="SECOND"?`<div class="stamp">Ayşe Demir onayladığında işlem otomatik tamamlanır.<br>
+      Yukarıdan “Ayşe’nin telefonu”na geçerek canlı gösterin.</div>`:""}
+   ${d.verdict==="DENIED"?`<div class="stamp"><b>Ne yapmalı?</b><br>${t.subject==="real_estate"
+      ?"Bu işlem için ortaklar kurulu kararı ve yeni imza sirküleri ile şubeye başvurun."
+      :"Yetkiniz sicilde güncel değil. Güncel imza sirküleri ile şubeye başvurun."}</div>`:""}
+   <div style="flex:1"></div><button class="btn ghost" onclick="state.view='list';renderMobile()">İşlemlere dön</button>`;
+}
+function logTxn(t,d){
+  const last=state.log[0];
+  if(last&&last.id===t.id&&last.verdict===d.verdict) return;
+  state.log.unshift({id:t.id,label:t.label,amount:t.amount,by:"Ali Yılmaz",verdict:d.verdict,
+    code:d.verdict==="ALLOWED"?"A-"+(7700+t.id*7):"—",time:new Date().toLocaleTimeString("tr-TR")});
+}
+
+/* ---------- authority record ---------- */
+function renderAuthority(){
+  const A=AUTHORITY_TPL, card=document.getElementById("authCard"), log=document.getElementById("logBox");
+  if(!state.approved){
+    card.innerHTML=`<div class="empty">Henüz yetki kaydı yok.<br><span style="font-size:13px">Şube onayı sonrası oluşur.</span></div>`;
+    log.innerHTML=`<div class="empty">İşlem yok.</div>`; return;
+  }
+  card.innerHTML=`
+   <div class="auth-head"><div class="t">${A.company} — yetki kaydı</div>
+     <div class="s">Kaynak: ${A.source.doc} · ${A.source.notary}<br>
+     ${A.source.channel} · doğrulandı ${A.source.verified} · geçerlilik ${A.source.validUntil}</div></div>
+   <div class="auth-body">
+     <div class="sec-l">Yetkililer</div>
+     ${A.persons.map(p=>{const r=REGISTRY[A.mersis].reps.find(x=>nameEq(x.name,p.name));
+       const ok=r&&r.status==="ACTIVE";
+       return `<div class="rule"><span class="l">${p.name} · ${p.degree}</span>
+         <span class="r" style="color:${ok?'var(--green)':'var(--red)'}">${ok?'aktif':'yetki düşmüş'}</span></div>`}).join("")}
+     <div class="sec-l" style="margin-top:16px">Limitler ve kapsam</div>
+     ${A.rules.map(r=>`<div class="rule"><span class="l">${r.label}</span>
+       <span class="r">${r.max===0?"—":r.max?"≤ "+TL(r.max):"her tutar"} · ${r.combo}</span></div>`).join("")}
+   </div>`;
+  log.innerHTML=state.log.length?`<table class="log"><thead><tr><th>Saat</th><th>İşlem</th><th>Tutar</th><th>Sonuç</th><th>Onay</th></tr></thead><tbody>
+    ${state.log.map(l=>`<tr><td style="color:var(--text-3)">${l.time}</td><td>${l.label}<div style="font-size:12px;color:var(--text-3)">${l.by}</div></td>
+      <td style="font-family:var(--mono);font-size:12.5px">${l.amount?TL(l.amount):"—"}</td>
+      <td><span class="vb ${l.verdict==="ALLOWED"?"ok":l.verdict==="SECOND"?"warn":"bad"}">${l.verdict==="ALLOWED"?"onaylandı":l.verdict==="SECOND"?"ikinci imza":"reddedildi"}</span></td>
+      <td style="font-family:var(--mono);font-size:12.5px">${l.code}</td></tr>`).join("")}
+    </tbody></table>`:`<div class="empty">Henüz işlem yapılmadı — mobil şubeden bir işlem başlatın.</div>`;
+}
+
+/* ---------- registry ---------- */
+function renderRegistry(){
+  const b=document.getElementById("regBody"); let h="";
+  Object.entries(REGISTRY).forEach(([m,co])=>{
+    h+=`<tr><td colspan="5" style="background:var(--surface-2);font-weight:600;font-size:13.5px">
+      ${co.name} <span style="color:var(--text-3);font-weight:400">· MERSİS ${m} · ${co.status==="ACTIVE"?"faal":"faal değil"}</span></td></tr>`;
+    co.reps.forEach((r,i)=>{
+      h+=`<tr><td style="padding-left:30px">${r.name}</td><td style="color:var(--text-2)">${r.tckn}</td>
+        <td style="color:var(--text-2)">${r.mode==="SOLE"?"münferiden":"müştereken"}</td>
+        <td><span class="st ${r.status==="ACTIVE"?"a":"r"}">${r.status==="ACTIVE"?"yetkili":"kayıttan çıkarılmış"}</span></td>
+        <td style="text-align:right"><button class="tgl" onclick="toggleRep('${m}',${i})">${r.status==="ACTIVE"?"Kayıttan çıkar":"Geri al"}</button></td></tr>`;
+    });
+  });
+  b.innerHTML=h;
+  document.getElementById("regJson").textContent="GET /mock-registry/"+AUTHORITY_TPL.mersis+"\n\n"+
+    JSON.stringify(REGISTRY[AUTHORITY_TPL.mersis],null,2);
+}
+function toggleRep(m,i){
+  const r=REGISTRY[m].reps[i];
+  r.status=r.status==="ACTIVE"?"REMOVED":"ACTIVE";
+  renderRegistry();
+}
+</script>
+</body>
+</html>
