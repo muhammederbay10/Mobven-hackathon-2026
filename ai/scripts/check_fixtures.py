@@ -16,10 +16,12 @@ if str(REPO_ROOT) not in sys.path:
 
 from pydantic import TypeAdapter, ValidationError  # noqa: E402
 
-from ai.compare import verdict_from_statuses  # noqa: E402
+from ai.compare import analyze, verdict_from_statuses  # noqa: E402
 from ai.schema import (  # noqa: E402
     CHECK_IDS,
+    AnalyzeRequest,
     CheckId,
+    CheckReport,
     CheckStatus,
     CheckVerdict,
     ExtractionResult,
@@ -29,6 +31,7 @@ from ai.schema import (  # noqa: E402
 FIXTURES_DIR = REPO_ROOT / "ai" / "tests" / "fixtures"
 CASE_NUMBERS = (1, 2, 3, 4)
 EXPECTED_SUFFIX = ".expected.json"
+REPORT_SUFFIX = "-report.json"
 
 # Case 4 is case 1's document: the paper is genuine, only the registry differs.
 SHARED_DOCUMENT_CASES = (1, 4)
@@ -60,6 +63,10 @@ def extraction_path(case: int, fixtures_dir: Path = FIXTURES_DIR) -> Path:
 
 def expected_path(case: int, fixtures_dir: Path = FIXTURES_DIR) -> Path:
     return fixtures_dir / f"case{case}{EXPECTED_SUFFIX}"
+
+
+def report_path(case: int, fixtures_dir: Path = FIXTURES_DIR) -> Path:
+    return fixtures_dir / f"case{case}{REPORT_SUFFIX}"
 
 
 def discover_cases(fixtures_dir: Path = FIXTURES_DIR) -> list[int]:
@@ -123,11 +130,11 @@ def check_extraction(payload: dict[str, Any], report: CaseReport) -> None:
         for co_signer in representative.co_signers:
             check_person_name(co_signer, f"{where} coSigners", report)
 
+    # Rule coSigners hold representative ids ("rep-2"), not names — the schema's own
+    # cross-field validator already rejects an id that resolves to nobody.
     for index, rule in enumerate(extraction.rules or []):
         if not rule.evidence.quote.strip():
             report.problems.append(f"extraction rules[{index}]: empty evidence quote")
-        for co_signer in rule.co_signers:
-            check_person_name(co_signer, f"extraction rules[{index}] coSigners", report)
 
 
 def check_expected(payload: dict[str, Any], report: CaseReport) -> None:
@@ -193,6 +200,40 @@ def read_statuses(
     return statuses
 
 
+def check_report(payload: dict[str, Any], report: CaseReport) -> None:
+    """Validates the standalone CheckReport fixture and guards it against drift.
+
+    The file must equal analyze()'s live output for this case's extraction, application, and
+    registry — it is a generated snapshot, never a hand-maintained second copy of the truth.
+    """
+
+    try:
+        parsed = CheckReport.model_validate(payload)
+    except ValidationError as error:
+        for issue in error.errors():
+            location = ".".join(str(part) for part in issue["loc"]) or "(root)"
+            report.problems.append(f"report {location}: {issue['msg']}")
+        return
+
+    if report.extraction is None or report.expected is None:
+        report.problems.append("report: cannot cross-check, extraction or expected fixture is invalid")
+        return
+
+    request = AnalyzeRequest.model_validate(
+        {
+            "extraction": report.extraction.model_dump(mode="json", by_alias=True),
+            "application": report.expected.get("application", {}),
+            "registry": report.expected.get("registry", {}),
+            "as_of": report.expected.get("as_of"),
+        }
+    )
+    live = analyze(request).model_dump(mode="json", by_alias=True)
+    if parsed.model_dump(mode="json", by_alias=True) != live:
+        report.problems.append(
+            "report: file does not match analyze() output — regenerate, never hand-edit"
+        )
+
+
 def check_case(case: int, fixtures_dir: Path = FIXTURES_DIR) -> CaseReport:
     report = CaseReport(case=case)
 
@@ -203,6 +244,10 @@ def check_case(case: int, fixtures_dir: Path = FIXTURES_DIR) -> CaseReport:
     expected_payload = load_json(expected_path(case, fixtures_dir), report)
     if expected_payload is not None:
         check_expected(expected_payload, report)
+
+    report_payload = load_json(report_path(case, fixtures_dir), report)
+    if report_payload is not None:
+        check_report(report_payload, report)
 
     return report
 
@@ -218,10 +263,12 @@ def check_shared_document(fixtures_dir: Path = FIXTURES_DIR) -> list[str]:
     return []
 
 
-def format_amount(value: float | None) -> str:
-    if value is None:
+def format_amount(value_kurus: int | None) -> str:
+    """value_kurus is integer kuruş (1 TL = 100 kuruş); displayed here as whole TL."""
+
+    if value_kurus is None:
         return "limitsiz"
-    return f"{value:,.0f}".replace(",", ".") + " TL"
+    return f"{value_kurus // 100:,}".replace(",", ".") + " TL"
 
 
 def describe_people(report: CaseReport) -> str:

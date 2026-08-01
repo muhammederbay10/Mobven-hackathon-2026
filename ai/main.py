@@ -8,15 +8,17 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, File, Form, UploadFile
 from pydantic import ValidationError
 
 if __package__:
     from .compare import analyze, degraded_report
-    from .schema import AnalyzeRequest, CheckReport, HealthResponse
+    from .extract import extract_document
+    from .schema import AnalyzeRequest, CheckReport, ExtractionResult, HealthResponse
 else:
     from compare import analyze, degraded_report
-    from schema import AnalyzeRequest, CheckReport, HealthResponse
+    from extract import extract_document
+    from schema import AnalyzeRequest, CheckReport, ExtractionResult, HealthResponse
 
 
 load_dotenv(Path(__file__).with_name(".env"))
@@ -36,6 +38,21 @@ async def health() -> HealthResponse:
     return HealthResponse(engine=engine)
 
 
+@app.post("/extract", response_model=ExtractionResult)
+async def extract_upload(
+    file: UploadFile = File(...),
+    document_id: str = Form(...),
+) -> ExtractionResult:
+    """Extracts an uploaded circular; every internal failure returns reviewable flat data."""
+
+    try:
+        data = await file.read()
+    except Exception:
+        data = b""
+    outcome = await extract_document(data, file.filename, document_id)
+    return outcome.result
+
+
 @app.post("/analyze", response_model=CheckReport)
 async def analyze_application(payload: dict[str, Any]) -> CheckReport:
     """Compares an application against its document and the registry — deterministic, no model."""
@@ -46,4 +63,3 @@ async def analyze_application(payload: dict[str, Any]) -> CheckReport:
         # A malformed body still gets nine red rows: the review screen never loses its checklist.
         return degraded_report(error)
     return analyze(request)
-

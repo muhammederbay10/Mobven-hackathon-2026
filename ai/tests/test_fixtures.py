@@ -24,6 +24,7 @@ from ai.scripts.check_fixtures import (
     expected_path,
     extraction_path,
     main,
+    report_path,
     verdict_from_statuses,
 )
 
@@ -223,10 +224,11 @@ def test_masked_ids_never_leak_a_full_national_id() -> None:
             assert not re.search(r"(?<!\d)\d{11}(?!\d)", text), f"{path.name} leaks a full TCKN"
 
 
-def test_fixture_directory_holds_exactly_the_eight_files() -> None:
+def test_fixture_directory_holds_exactly_the_twelve_files() -> None:
     names = sorted(path.name for path in FIXTURES_DIR.glob("*.json"))
 
     assert names == sorted(
         [f"case{case}.json" for case in CASE_NUMBERS]
         + [f"case{case}.expected.json" for case in CASE_NUMBERS]
+        + [report_path(case).name for case in CASE_NUMBERS]
     )
