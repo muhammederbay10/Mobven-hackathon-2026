@@ -38,7 +38,9 @@
   "notes": [
     "Başvurudaki unvan 'Ltd. Şti.', belgedeki unvan 'Limited Şirketi' — company_name_match ancak strip_company_suffix() ile yeşile döner. Bu fark bilerek bırakıldı.",
     "Belge soyadları büyük harfle basar (Ali YILMAZ); düz sözleşme normalize edilmiş görünen adı taşır (Ali Yılmaz). İ/ı dönüşümü normalize.py'nin işidir.",
-    "Ali münferiden ≤ 500.000 TL, üzeri Ayşe ile müşterek — bu nedenle mode SOLE, limits 500000, coSigners boş. Müşterek ilişki rules[] içinde yaşar.",
-    "Belgenin 4. maddesindeki gayrimenkul istisnası rules[] içinde YOKTUR: ExtractionRule (scope, threshold, mode, coSigners) 'kapsam dışı'yı ifade edemiyor. Sözleşme dondurulmadan önce karara bağlanmalı; şu an api/ tarafında seed rule olarak duruyor."
+    "Ali münferiden ≤ 500.000 TL (limits 50000000 kuruş), üzeri Ayşe ile müşterek — bu nedenle mode SOLE, coSigners boş. Müşterek ilişki rules[] içinde yaşar.",
+    "Belgenin 4. maddesindeki gayrimenkul istisnası artık rules[] içindedir: scope 'real_estate', blocked true, mode null, coSigners boş — kapsam dışını temsil eder, kimseye yetki vermez. Act-2 kural sayısı bu nedenle dörttür.",
+    "Para birimleri kuruş cinsinden tam sayıdır (1 TL = 100 kuruş): 500.000,00 TL alanlarda 50000000 olarak görünür.",
+    "Her temsilcinin belge-sıralı, kalıcı bir id'si vardır (rep-1, rep-2, ...); eş imzacılar (coSigners) yine ada göre listelenir."
   ]
 }

@@ -1,0 +1,96 @@
+{
+  "verdict": "MISMATCH",
+  "checks": [
+    {
+      "id": "company_name_match",
+      "status": "red",
+      "title": "Şirket unvanı",
+      "reason": "Başvuru ve belge farklı şirketlere ait.",
+      "evidence": {
+        "Başvuru": "Delta Lojistik A.Ş.",
+        "Belge": "Zeta İnşaat Sanayi ve Ticaret Anonim Şirketi"
+      }
+    },
+    {
+      "id": "tax_number_match",
+      "status": "red",
+      "title": "Vergi kimlik numarası",
+      "reason": "Vergi kimlik numarası başvuru ile belgede farklı.",
+      "evidence": {
+        "Başvuru": "4567890128",
+        "Belge": "9876543217"
+      }
+    },
+    {
+      "id": "mersis_number_match",
+      "status": "red",
+      "title": "MERSİS numarası",
+      "reason": "MERSİS numarası başvuru ile belgede farklı.",
+      "evidence": {
+        "Başvuru": "0456789012000011",
+        "Belge": "0987654321000023"
+      }
+    },
+    {
+      "id": "applicant_in_document",
+      "status": "red",
+      "title": "Başvuru sahibi belgede",
+      "reason": "Mehmet Kaya belgedeki yetkililer arasında yer almıyor.",
+      "evidence": {
+        "Başvuru sahibi": "Mehmet Kaya",
+        "Belgedeki yetkililer": "Kemal Öz"
+      }
+    },
+    {
+      "id": "identity_match",
+      "status": "red",
+      "title": "Kimlik doğrulaması",
+      "reason": "Başvuru sahibi belgede bulunmadığı için kimlik karşılaştırması yapılamadı.",
+      "evidence": {
+        "Başvuru": "321******54",
+        "Belge": null
+      }
+    },
+    {
+      "id": "authority_mode",
+      "status": "red",
+      "title": "İmza yetkisi türü",
+      "reason": "Başvuru sahibi belgede yer almadığı için imza yetkisi türü belirlenemedi.",
+      "evidence": {
+        "Başvuru sahibi": "Mehmet Kaya"
+      }
+    },
+    {
+      "id": "registry_status",
+      "status": "green",
+      "title": "Sicil durumu",
+      "reason": "Şirket sicilde faal görünüyor.",
+      "evidence": {
+        "Sicil kaydı": "0456789012000011",
+        "Durum": "ACTIVE",
+        "Kaynak": "simüle MERSİS"
+      }
+    },
+    {
+      "id": "registry_representative_match",
+      "status": "green",
+      "title": "Sicilde temsil yetkisi",
+      "reason": "Mehmet Kaya sicilde aktif temsilci olarak görünüyor.",
+      "evidence": {
+        "Başvuru sahibi": "Mehmet Kaya",
+        "Sicil durumu": "ACTIVE",
+        "Kaynak": "simüle MERSİS"
+      }
+    },
+    {
+      "id": "document_validity",
+      "status": "green",
+      "title": "Belge geçerliliği",
+      "reason": "Belge 06.11.2027 tarihine kadar geçerli.",
+      "evidence": {
+        "Geçerlilik": "06.11.2027",
+        "Kontrol tarihi": "01.08.2026"
+      }
+    }
+  ]
+}

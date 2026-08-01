@@ -1,0 +1,98 @@
+{
+  "verdict": "REGISTRY_CONFLICT",
+  "checks": [
+    {
+      "id": "company_name_match",
+      "status": "green",
+      "title": "Şirket unvanı",
+      "reason": "Başvurudaki unvan ile belgedeki unvan aynı şirketi gösteriyor.",
+      "evidence": {
+        "Başvuru": "ABC Teknoloji Ltd. Şti.",
+        "Belge": "ABC Teknoloji Limited Şirketi"
+      }
+    },
+    {
+      "id": "tax_number_match",
+      "status": "green",
+      "title": "Vergi kimlik numarası",
+      "reason": "Vergi kimlik numarası birebir aynı.",
+      "evidence": {
+        "Başvuru": "1234567890",
+        "Belge": "1234567890"
+      }
+    },
+    {
+      "id": "mersis_number_match",
+      "status": "green",
+      "title": "MERSİS numarası",
+      "reason": "MERSİS numarası birebir aynı.",
+      "evidence": {
+        "Başvuru": "0123456789000017",
+        "Belge": "0123456789000017"
+      }
+    },
+    {
+      "id": "applicant_in_document",
+      "status": "green",
+      "title": "Başvuru sahibi belgede",
+      "reason": "Ali Yılmaz belgede temsile yetkili olarak yer alıyor.",
+      "evidence": {
+        "Başvuru sahibi": "Ali Yılmaz",
+        "Belgedeki yetkililer": "Ali Yılmaz, Ayşe Demir"
+      }
+    },
+    {
+      "id": "identity_match",
+      "status": "green",
+      "title": "Kimlik doğrulaması",
+      "reason": "Ad eşleşmesini maskeli T.C. kimlik numarası da doğruluyor.",
+      "evidence": {
+        "Başvuru": "123******01",
+        "Belge": "123******01"
+      }
+    },
+    {
+      "id": "authority_mode",
+      "status": "green",
+      "title": "İmza yetkisi türü",
+      "reason": "Ali Yılmaz 500.000,00 TL tutarına kadar münferiden temsile yetkili.",
+      "evidence": {
+        "İmza türü": "SOLE",
+        "Eş imzacılar": null,
+        "Limit": "500.000,00 TL"
+      }
+    },
+    {
+      "id": "registry_status",
+      "status": "green",
+      "title": "Sicil durumu",
+      "reason": "Şirket sicilde faal görünüyor.",
+      "evidence": {
+        "Sicil kaydı": "0123456789000017",
+        "Durum": "ACTIVE",
+        "Kaynak": "simüle MERSİS"
+      }
+    },
+    {
+      "id": "registry_representative_match",
+      "status": "red",
+      "title": "Sicilde temsil yetkisi",
+      "reason": "Ali Yılmaz sicilde kayıtlı ancak temsil yetkisi düşmüş (REMOVED).",
+      "evidence": {
+        "Başvuru sahibi": "Ali Yılmaz",
+        "Sicil durumu": "REMOVED",
+        "Kaynak": "simüle MERSİS"
+      }
+    },
+    {
+      "id": "document_validity",
+      "status": "green",
+      "title": "Belge geçerliliği",
+      "reason": "Belge 15.03.2028 tarihine kadar geçerli.",
+      "evidence": {
+        "Geçerlilik": "15.03.2028",
+        "Kontrol tarihi": "01.08.2026"
+      }
+    }
+  ]
+}

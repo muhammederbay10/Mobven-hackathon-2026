@@ -15,15 +15,17 @@
   "validUntil": "2028-03-15",
   "representatives": [
     {
+      "id": "rep-1",
       "name": "Ali Yılmaz",
       "nameNormalized": "ali yilmaz",
       "nationalId": "123******01",
       "title": "Müdür",
       "mode": "SOLE",
       "coSigners": [],
-      "limits": 500000.0
+      "limits": 50000000
     },
     {
+      "id": "rep-2",
       "name": "Ayşe Demir",
       "nameNormalized": "ayse demir",
       "nationalId": "456******23",
@@ -43,9 +45,10 @@
   "rules": [
     {
       "scope": "general",
-      "threshold": 500000.0,
+      "threshold": 50000000,
       "mode": "SOLE",
       "coSigners": [],
+      "blocked": false,
       "evidence": {
         "page": 1,
         "quote": "Ali YILMAZ, şirket unvanı veya kaşesi altına atacağı münferit imzası ile 500.000,00 TL'ye kadar (bu tutar dâhil) her türlü iş ve işlemde şirketi temsil ve ilzama yetkilidir."
@@ -56,9 +59,10 @@
       "threshold": null,
       "mode": "JOINT",
       "coSigners": [
-        "Ali Yılmaz",
-        "Ayşe Demir"
+        "rep-1",
+        "rep-2"
       ],
+      "blocked": false,
       "evidence": {
         "page": 1,
         "quote": "500.000,00 TL'yi aşan her türlü iş ve işlemde Ali YILMAZ ile Ayşe DEMİR'in müşterek imzası şarttır."
@@ -69,12 +73,24 @@
       "threshold": null,
       "mode": "JOINT",
       "coSigners": [
-        "Ali Yılmaz",
-        "Ayşe Demir"
+        "rep-1",
+        "rep-2"
       ],
+      "blocked": false,
       "evidence": {
         "page": 1,
         "quote": "Tutarına bakılmaksızın her türlü kredi sözleşmesi, kredi taahhütnamesi, teminat mektubu ve kefalet işleminde Ali YILMAZ ile Ayşe DEMİR'in müşterek imzası şarttır."
+      }
+    },
+    {
+      "scope": "real_estate",
+      "threshold": null,
+      "mode": null,
+      "coSigners": [],
+      "blocked": true,
+      "evidence": {
+        "page": 1,
+        "quote": "Gayrimenkul alım, satım, ipotek tesisi ve fek işlemleri işbu sirküler kapsamı dışında olup, bu işlemler için ortaklar kurulunun ayrıca alacağı karar aranır."
       }
     }
   ]

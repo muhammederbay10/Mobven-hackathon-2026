@@ -5,7 +5,7 @@
     "name": "Zeta İnşaat Sanayi ve Ticaret Anonim Şirketi",
     "taxNumber": "9876543217",
     "mersisNumber": "0987654321000023",
-    "legalNameNormalized": "zeta insaat"
+    "legalNameNormalized": "zeta insaat sanayi ve ticaret"
   },
   "notary": {
     "name": "Ankara 9. Noterliği",
@@ -15,6 +15,7 @@
   "validUntil": "2027-11-06",
   "representatives": [
     {
+      "id": "rep-1",
       "name": "Kemal Öz",
       "nameNormalized": "kemal oz",
       "nationalId": "789******45",
@@ -37,9 +38,21 @@
       "threshold": null,
       "mode": "SOLE",
       "coSigners": [],
+      "blocked": false,
       "evidence": {
         "page": 1,
         "quote": "Kemal ÖZ, şirket unvanı veya kaşesi altına atacağı münferit imzası ile şirketi her türlü iş ve işlemde temsil ve ilzama yetkilidir."
+      }
+    },
+    {
+      "scope": "real_estate",
+      "threshold": null,
+      "mode": null,
+      "coSigners": [],
+      "blocked": true,
+      "evidence": {
+        "page": 1,
+        "quote": "Gayrimenkul alım, satım, ipotek tesisi ve fek işlemleri işbu sirküler kapsamı dışında olup, bu işlemler için yönetim kurulunun ayrıca alacağı karar aranır."
       }
     }
   ]

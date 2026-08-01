@@ -15,6 +15,7 @@
   "validUntil": "2028-04-22",
   "representatives": [
     {
+      "id": "rep-1",
       "name": "Ali Yılmaz",
       "nameNormalized": "ali yilmaz",
       "nationalId": "123******01",
@@ -26,6 +27,7 @@
       "limits": null
     },
     {
+      "id": "rep-2",
       "name": "Ayşe Demir",
       "nameNormalized": "ayse demir",
       "nationalId": "456******23",
@@ -48,12 +50,24 @@
       "threshold": null,
       "mode": "JOINT",
       "coSigners": [
-        "Ali Yılmaz",
-        "Ayşe Demir"
+        "rep-1",
+        "rep-2"
       ],
+      "blocked": false,
       "evidence": {
         "page": 1,
         "quote": "Yukarıda adları yazılı Ali YILMAZ ve Ayşe DEMİR, şirket unvanı veya kaşesi altına atacakları müşterek imzaları ile şirketi her türlü iş ve işlemde temsil ve ilzama yetkilidir."
+      }
+    },
+    {
+      "scope": "real_estate",
+      "threshold": null,
+      "mode": null,
+      "coSigners": [],
+      "blocked": true,
+      "evidence": {
+        "page": 1,
+        "quote": "Gayrimenkul alım, satım, ipotek tesisi ve fek işlemleri işbu sirküler kapsamı dışında olup, bu işlemler için ortaklar kurulunun ayrıca alacağı karar aranır."
       }
     }
   ]
