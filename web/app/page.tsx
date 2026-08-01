@@ -152,40 +152,65 @@ export default function ControlPanelPage() {
         </p>
       ) : null}
 
-      <Panel>
-        {cases === null && listError === null ? <LoadingState label="Senaryolar yükleniyor…" /> : null}
-        {listError ? <ErrorState error={listError} onRetry={() => fetchCases()} /> : null}
-        {cases !== null && cases.length === 0 ? (
+      {cases === null && listError === null ? (
+        <Panel>
+          <LoadingState label="Senaryolar yükleniyor…" />
+        </Panel>
+      ) : null}
+      {listError ? (
+        <Panel>
+          <ErrorState error={listError} onRetry={() => fetchCases()} />
+        </Panel>
+      ) : null}
+      {cases !== null && cases.length === 0 ? (
+        <Panel>
           <EmptyState title="Tanımlı demo senaryosu yok." />
-        ) : null}
+        </Panel>
+      ) : null}
 
-        {cases && cases.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+      {cases && cases.length > 0 ? (
+        // The KPI strip from the reference: cards on a soft accent wash.
+        // Decorative only — verdict colors still come from StatusBadge.
+        <div
+          className="rounded-panel p-3.5"
+          style={{ background: "var(--yc-gradient-wash)" }}
+        >
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {cases.map((demoCase) => {
               const pending = loadState.kind === "pending" && loadState.case === demoCase.case;
               const failed = loadState.kind === "error" && loadState.case === demoCase.case;
               return (
-                <div key={demoCase.case} className="flex flex-col gap-2">
+                <div key={demoCase.case} className="flex h-full flex-col gap-2">
+                  {/* h-full + flex-1 chain: every card stretches to the row's
+                      height, so a longer description never makes one card
+                      taller than its neighbors. */}
                   <CardButton
                     onClick={() => handleLoadCase(demoCase.case)}
                     disabled={loadState.kind === "pending"}
                     aria-keyshortcuts={String(demoCase.case)}
+                    className="flex flex-1 flex-col !p-0 shadow-panel"
                   >
-                    <div className="mb-1.5 flex items-center justify-between text-[11px] text-ink-muted">
-                      <span>Vaka {demoCase.case}</span>
-                      <kbd className="rounded-[5px] border border-border px-1.5 py-px font-mono text-[10px]">
+                    <div className="flex items-center justify-between gap-2 px-3.5 pb-2 pt-3">
+                      <span className="truncate text-[13px] font-semibold text-ink">
+                        {demoCase.title}
+                      </span>
+                      <kbd className="flex-none rounded-[6px] border border-border bg-surface-subtle px-1.5 py-px font-mono text-[10px] text-ink-muted">
                         {demoCase.case}
                       </kbd>
                     </div>
-                    <div className="mb-1.5 text-[14px] font-semibold text-ink">{demoCase.title}</div>
-                    <p className="text-[12.5px] leading-5 text-ink-secondary">
-                      {demoCase.description}
-                    </p>
-                    <div className="mt-2.5">
-                      <StatusBadge
-                        status={ONBOARDING_VERDICT_STATUS[demoCase.expected_verdict]}
-                        label={ONBOARDING_VERDICT_LABEL[demoCase.expected_verdict]}
-                      />
+                    <div className="mx-2.5 mb-2.5 flex-1 rounded-card border border-border bg-surface px-3 py-2.5 shadow-panel">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[24px] font-semibold leading-7 tracking-[-0.01em] text-ink">
+                          {demoCase.case}
+                        </span>
+                        <StatusBadge
+                          status={ONBOARDING_VERDICT_STATUS[demoCase.expected_verdict]}
+                          label={ONBOARDING_VERDICT_LABEL[demoCase.expected_verdict]}
+                        />
+                      </div>
+                      <p className="mt-1.5 text-[12px] leading-[18px] text-ink-secondary">
+                        {demoCase.description}
+                      </p>
                     </div>
                   </CardButton>
                   {pending ? (
@@ -202,8 +227,8 @@ export default function ControlPanelPage() {
               );
             })}
           </div>
-        ) : null}
-      </Panel>
+        </div>
+      ) : null}
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         {FLOW.map((step) => (

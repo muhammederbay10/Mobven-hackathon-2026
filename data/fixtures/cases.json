@@ -30,7 +30,7 @@
     {
       "case": 2,
       "title": "Çift imza gerekli",
-      "description": "Şirket ve kimlik bilgileri uyuşuyor, ancak sirküler bu işlem için Ali ve Ayşe'nin birlikte imzasını arıyor.",
+      "description": "Bilgiler uyuşuyor; ancak sirküler bu işlemde Ali ve Ayşe'nin ortak imzasını arıyor.",
       "expected_verdict": "CO_SIGNER_REQUIRED",
       "document": "case2.pdf",
       "application": {
@@ -47,7 +47,7 @@
     {
       "case": 3,
       "title": "Başvuru ile belge uyuşmuyor",
-      "description": "Başvuru ABC Teknoloji ve Mehmet Kaya adına; getirilen sirküler Zeta İnşaat'a ait ve Kemal Öz'ü yetkilendiriyor.",
+      "description": "Başvuru ABC Teknoloji adına; getirilen sirküler ise Zeta İnşaat'ı yetkilendiriyor.",
       "expected_verdict": "MISMATCH",
       "document": "case3.pdf",
       "application": {
@@ -64,7 +64,7 @@
     {
       "case": 4,
       "title": "Sicilde yetki düşmüş",
-      "description": "Belge case 1 ile aynı ve temiz; ancak sicilde Ali Yılmaz'ın yetkisi düşürülmüş durumda.",
+      "description": "Belge vaka 1 ile aynı ve temiz; ancak sicilde Ali Yılmaz'ın yetkisi düşürülmüş.",
       "expected_verdict": "REGISTRY_CONFLICT",
       "document": "case1.pdf",
       "application": {

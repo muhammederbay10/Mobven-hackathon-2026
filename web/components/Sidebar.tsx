@@ -111,15 +111,32 @@ function buildNavGroups(activeMersis: string | null | undefined): NavGroup[] {
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-function BrandMark() {
+/**
+ * The Starq.dev brand assets, pre-trimmed from
+ * `public/starq-logo-brand-colors.png` (which carries a huge transparent
+ * margin and would render as an invisible sliver if used directly):
+ * - `starq-logo-full.png` — the full wordmark, for wide contexts;
+ * - `starq-logo-mark.png` — the arrow glyph alone, for the 64px rail.
+ * Height is fixed and width stays `auto` + `max-w-full`, so neither asset can
+ * overflow the rail, the expanded column, or the mobile drawer.
+ */
+function BrandWordmark({ className = "" }: { className?: string }) {
   return (
-    <span
-      className="grid size-7 flex-none place-items-center rounded-control text-[13px] font-bold text-white"
-      style={{ background: "var(--yc-gradient-action)" }}
-      aria-hidden
-    >
-      Y
-    </span>
+    <img
+      src="/starq-logo-full.png"
+      alt="Starq.dev"
+      className={`h-6 w-auto max-w-full object-contain ${className}`}
+    />
+  );
+}
+
+function BrandGlyph({ className = "" }: { className?: string }) {
+  return (
+    <img
+      src="/starq-logo-mark.png"
+      alt="Starq.dev"
+      className={`h-6 w-auto ml-4 flex-none object-contain ${className}`}
+    />
   );
 }
 
@@ -135,7 +152,10 @@ function NavLinks({
   onNavigate?: () => void;
 }) {
   return (
-    <nav aria-label="Ana gezinme" className="flex flex-1 flex-col gap-5 overflow-y-auto px-3.5 py-4">
+    <nav
+      aria-label="Ana gezinme"
+      className="flex flex-1 flex-col gap-5 overflow-y-auto px-3.5 py-4"
+    >
       {groups.map((group) => (
         <div key={group.label}>
           {!compact ? (
@@ -164,7 +184,9 @@ function NavLinks({
                     ].join(" ")}
                   >
                     <Icon className="flex-none" />
-                    {!compact ? <span className="truncate">{item.label}</span> : null}
+                    {!compact ? (
+                      <span className="truncate">{item.label}</span>
+                    ) : null}
                   </Link>
                 </li>
               );
@@ -244,11 +266,16 @@ export function Sidebar({
   const railWidthClass = collapsed
     ? "w-(--yc-sidebar-rail-width)"
     : "w-(--yc-sidebar-rail-width) nav:w-(--yc-sidebar-width)";
-  const wordmarkClass = collapsed
+  // Rail states (forced rail below nav:, or manual collapse) show the compact
+  // arrow glyph; the full wordmark appears only where it has room.
+  const glyphClass = collapsed ? "" : "nav:hidden";
+  const wordmarkClass = collapsed ? "hidden" : "hidden nav:block";
+  const railLinksClass = collapsed
+    ? "flex flex-1 flex-col"
+    : "nav:hidden flex flex-1 flex-col";
+  const fullLinksClass = collapsed
     ? "hidden"
-    : "hidden truncate text-[14px] font-semibold tracking-[-0.01em] text-ink nav:inline";
-  const railLinksClass = collapsed ? "flex flex-1 flex-col" : "nav:hidden flex flex-1 flex-col";
-  const fullLinksClass = collapsed ? "hidden" : "hidden flex-1 flex-col nav:flex";
+    : "hidden flex-1 flex-col nav:flex";
 
   return (
     <>
@@ -261,14 +288,23 @@ export function Sidebar({
       <div
         className={`hidden flex-none flex-col overflow-hidden border-r border-border bg-shell transition-[width] duration-200 ease-in-out md:flex ${railWidthClass}`}
       >
-        {/* Logo at the far left, collapse toggle at the far right. Below
-            nav: (1100px) the toggle is not rendered — the rail is already
-            forced by width alone there — so this row falls back to centering
-            the logo alone, matching the rail's other icon-only rows. */}
-        <div className="flex h-(--yc-topbar-height) flex-none items-center justify-center gap-2 border-b border-border px-3.5 nav:justify-between">
-          <span className="flex min-w-0 items-center gap-2">
-            <BrandMark />
-            <span className={wordmarkClass}>YetkiCheck</span>
+        {/* Expanded (nav: width, not collapsed): logo at the far left,
+            collapse toggle at the far right, one 54px row. Collapsed at nav:
+            width: the 64px rail cannot fit both side by side, so the header
+            becomes a deliberate column — logo on top, toggle beneath it —
+            instead of letting flex overflow stack them arbitrarily. Below
+            nav: (1100px) the toggle is not rendered at all (the rail is
+            forced by width alone), so the row centers the logo. */}
+        <div
+          className={
+            collapsed
+              ? "flex flex-none flex-col items-center gap-1.5  border-b border-border py-2.5"
+              : "flex h-(--yc-topbar-height) flex-none items-center justify-center gap-2 border-b border-border px-3.5 nav:justify-between"
+          }
+        >
+          <span className="flex min-w-0 items-center">
+            <BrandGlyph className={glyphClass} />
+            <BrandWordmark className={wordmarkClass} />
           </span>
           <button
             type="button"
@@ -309,9 +345,8 @@ export function Sidebar({
             className="relative flex h-full w-[min(84vw,300px)] flex-col bg-shell shadow-shell"
           >
             <div className="flex h-(--yc-topbar-height) flex-none items-center gap-2 border-b border-border px-3.5">
-              <BrandMark />
-              <span className="flex-1 truncate text-[14px] font-semibold tracking-[-0.01em] text-ink">
-                YetkiCheck
+              <span className="flex min-w-0 flex-1 items-center">
+                <BrandWordmark />
               </span>
               <button
                 type="button"
@@ -322,7 +357,12 @@ export function Sidebar({
                 <CloseIcon />
               </button>
             </div>
-            <NavLinks groups={groups} pathname={pathname} compact={false} onNavigate={onClose} />
+            <NavLinks
+              groups={groups}
+              pathname={pathname}
+              compact={false}
+              onNavigate={onClose}
+            />
           </div>
         </div>
       ) : null}

@@ -163,27 +163,45 @@ export function Checkbox({
 /* Breadcrumb                                                                 */
 /* -------------------------------------------------------------------------- */
 
-export type BreadcrumbItem = { label: string; href?: string };
+export type BreadcrumbItem = { label: string; href?: string; icon?: ReactNode };
 
-/** Section 8: compact breadcrumb, "Ana Sayfa / current section". */
+/**
+ * Section 8 + reference PNG: compact breadcrumb, "Ana Sayfa / current
+ * section", each crumb with its small outline glyph.
+ */
 export function Breadcrumb({ items }: { items: BreadcrumbItem[] }) {
   return (
     <nav aria-label="Konum" className="flex min-w-0 items-center gap-1.5 text-[13px]">
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
+        const content = (
+          <>
+            {item.icon ? (
+              <span className="flex-none text-ink-secondary" aria-hidden>
+                {item.icon}
+              </span>
+            ) : null}
+            <span className="truncate">{item.label}</span>
+          </>
+        );
         return (
           <span key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-1.5">
             {index > 0 ? <ChevronRightIcon className="flex-none text-ink-muted" /> : null}
             {item.href && !isLast ? (
-              <Link href={item.href} className="truncate text-ink-secondary hover:text-ink">
-                {item.label}
+              <Link
+                href={item.href}
+                className="flex min-w-0 items-center gap-1.5 text-ink-secondary hover:text-ink"
+              >
+                {content}
               </Link>
             ) : (
               <span
-                className={`truncate ${isLast ? "font-medium text-ink" : "text-ink-secondary"}`}
+                className={`flex min-w-0 items-center gap-1.5 ${
+                  isLast ? "font-medium text-ink" : "text-ink-secondary"
+                }`}
                 aria-current={isLast ? "page" : undefined}
               >
-                {item.label}
+                {content}
               </span>
             )}
           </span>

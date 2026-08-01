@@ -119,3 +119,43 @@ export function PanelLeftIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Breadcrumb "Ana Sayfa" glyph. */
+export function HomeIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 10.5 12 4l8 6.5" />
+      <path d="M5.5 9.5V19a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5" />
+      <path d="M10 20.5v-5.5h4v5.5" />
+    </svg>
+  );
+}
+
+/** Top-bar search field glyph. */
+export function SearchIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M15.8 15.8 20.5 20.5" />
+    </svg>
+  );
+}
+
+/** Top-bar notification bell. */
+export function BellIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3.5a5.5 5.5 0 0 0-5.5 5.5c0 4.5-1.5 6-2 6.5h15c-.5-.5-2-2-2-6.5A5.5 5.5 0 0 0 12 3.5Z" />
+      <path d="M10 18.5a2 2 0 0 0 4 0" />
+    </svg>
+  );
+}
+
+/** Gradient primary-action plus. */
+export function PlusIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
