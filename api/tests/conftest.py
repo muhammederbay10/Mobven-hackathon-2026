@@ -7,6 +7,7 @@ architecture step 5). Everything here resolves to committed local files.
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -59,3 +60,59 @@ def require_delivered(payloads: list[tuple[str, object]], what: str) -> None:
             f"{what} not delivered yet — expected under {AI_FIXTURES_DIR.relative_to(REPO_ROOT)} "
             f"or {EXTRACTION_FIXTURES_DIR.relative_to(REPO_ROOT)} (GAP-10, due H4)."
         )
+
+
+# ---------------------------------------------------------------------------
+# Isolated runtime environment
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def demo_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """A throwaway data directory and database, seeded from committed fixtures.
+
+    Tests must never touch the developer's real `data/registry.json`, uploads or
+    database — a test run that mutates the demo baseline is exactly the kind of
+    surprise that ruins a rehearsal. Committed inputs are copied in read-only
+    spirit; everything mutable lives under `tmp_path`.
+    """
+    from api import config, db
+
+    data_dir = tmp_path / "data"
+    (data_dir / "fixtures").mkdir(parents=True)
+    (data_dir / "uploads").mkdir(parents=True)
+    (data_dir / "cache" / "extractions").mkdir(parents=True)
+    (data_dir / "documents").mkdir(parents=True)
+
+    shutil.copy(REGISTRY_SEED_FILE, data_dir / "registry.seed.json")
+    shutil.copy(CASES_FILE, data_dir / "fixtures" / "cases.json")
+
+    monkeypatch.setenv("DATA_DIR", str(data_dir))
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{(tmp_path / 'test.db').as_posix()}")
+    monkeypatch.setenv("DEMO_MODE", "true")
+    monkeypatch.setenv("AI_MODE", "stub")
+    monkeypatch.setenv("EXTRACTION_CACHE", "on")
+    monkeypatch.setenv("ALLOWED_ORIGINS", "http://localhost:3000")
+
+    config.get_settings.cache_clear()
+    db.reset_engine()
+
+    settings = config.get_settings()
+    settings.ensure_runtime_directories()
+    db.init_db(settings)
+
+    yield settings
+
+    db.reset_engine()
+    config.get_settings.cache_clear()
+
+
+@pytest.fixture
+def client(demo_env):
+    """TestClient bound to the isolated environment. No network involved."""
+    from fastapi.testclient import TestClient
+
+    from api.main import create_app
+
+    with TestClient(create_app()) as test_client:
+        yield test_client

@@ -13,7 +13,24 @@ python -m uvicorn api.main:app --reload --port 8000
 python -m pytest api/tests
 ```
 
-`api/main.py` arrives with Phase 0 backend step 1 (`P0-01`). `python -m pytest api/tests` runs today and covers the contract freeze.
+Both run today. Reset first, then start the server:
+
+```bash
+scripts/reset_demo.ps1                                  # or scripts/reset_demo.sh
+python -m uvicorn api.main:app --reload --port 8000
+```
+
+### Endpoints live now
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/health` | process + database; deliberately does not require the AI service |
+| GET | `/ready` | 200/503 — database, data dir, and configured AI-mode readiness |
+| GET | `/api/demo/cases` | case cards for the control panel |
+| POST | `/api/demo/load-case/{n}` | 201 `{application_id}`; `DEMO_MODE` guarded |
+| POST | `/api/demo/reset` | 200 `{ok:true}`; `DEMO_MODE` guarded |
+
+Applications, documents, analysis, decisions, authority and transactions are Phase 1 onwards.
 
 ## Configuration
 
@@ -23,13 +40,16 @@ Copy `api/.env.example` to `api/.env`. `AI_MODE` accepts `stub`, `live` or `repl
 
 | Path | Role |
 |---|---|
-| `main.py` | app factory, CORS allowlist, `/health`, `/ready` |
-| `config.py` | validated settings; unknown `AI_MODE` fails startup |
+| `main.py` | app factory, CORS allowlist, correlation IDs, error envelope, `/health`, `/ready` |
+| `config.py` | validated settings; unknown `AI_MODE` fails startup; path containment |
 | `db.py`, `models.py` | SQLModel tables, enums, UTC timestamps, session lifecycle |
 | `schemas.py` | **frozen** shared contracts — Python mirror of `ai/schema.py` |
+| `errors.py` | `ApiError` and the standard error envelope |
 | `routers/` | HTTP surface only: validate, delegate, serialize |
 | `services/` | every business rule lives here |
 | `tests/` | contract and integration tests |
+
+`services/demo_service.py` is an addition to the section 4.1 layout: the plan asks for a "seed/reset service" but lists no home for it, and business logic must not live in `routers/demo.py`. It is also the **only** module allowed to know a case number exists (section 1.4).
 
 ## Rules this service holds to
 

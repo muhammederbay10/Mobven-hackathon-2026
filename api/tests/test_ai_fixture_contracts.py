@@ -23,6 +23,8 @@ from pydantic import ValidationError
 from api import schemas as s
 from api.tests.conftest import (
     AI_FIXTURES_DIR,
+    CASES_FILE,
+    DATA_DIR,
     EXTRACTION_FIXTURES_DIR,
     REGISTRY_SEED_FILE,
     REPORT_FIXTURES_DIR,
@@ -271,11 +273,101 @@ def test_no_fixture_contains_a_plausible_unmasked_tckn() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_registry_seed_validates_when_delivered() -> None:
-    if not REGISTRY_SEED_FILE.is_file():
-        pytest.skip("data/registry.seed.json not written yet (Phase 0 data step 2).")
+def test_registry_seed_matches_the_fixed_cast() -> None:
+    """Phase 0 data steps 2 and 10, GAP-08 and GAP-09."""
     registry = s.Registry.model_validate(load_json(REGISTRY_SEED_FILE))
-    assert registry.companies, "registry seed must contain at least one company"
+    companies = {company.mersis: company for company in registry.companies}
+    assert set(companies) == {"0123456789000017", "0987654321000023"}
+
+    abc = companies["0123456789000017"]
+    assert abc.legal_name == "ABC Teknoloji Ltd. Şti."
+    assert abc.tax_number == "1234567890"
+    assert {rep.id: (rep.name, rep.tckn) for rep in abc.representatives} == {
+        "rep_abc_ali": ("Ali Yılmaz", "123******01"),
+        "rep_abc_ayse": ("Ayşe Demir", "987******45"),
+    }
+
+    zeta = companies["0987654321000023"]
+    assert zeta.legal_name == "Zeta İnşaat A.Ş."
+    assert zeta.tax_number == "9876543210"
+    assert {rep.id: (rep.name, rep.tckn) for rep in zeta.representatives} == {
+        "rep_zeta_kemal": ("Kemal Öz", "555******22")
+    }
+
+    # The baseline is fully active: cases opt into deviations, never out of them.
     for company in registry.companies:
+        assert company.status is s.RegistryCompanyStatus.ACTIVE
         for rep in company.representatives:
+            assert rep.status is s.RegistryRepresentativeStatus.ACTIVE
             assert re.match(s.REGISTRY_REP_ID_PATTERN, rep.id)
+
+
+def test_no_committed_demo_data_contains_an_unmasked_tckn() -> None:
+    """Plan section 14 / GAP-08, applied to full-stack-owned fixtures."""
+    defects: list[str] = []
+    for path in (REGISTRY_SEED_FILE, CASES_FILE):
+        for match in UNMASKED_TCKN.finditer(path.read_text(encoding="utf-8")):
+            defects.append(f"{path.name}: contains an 11-digit run {match.group()!r}")
+    assert not defects, "\n".join(defects)
+
+
+def test_clean_case_fixture_is_act_two_capable() -> None:
+    """Phase 0 data step 5, against the delivered case-1 extraction.
+
+    Section 11.1: the clean fixture is deliberately Act-2 capable so the stage
+    can connect branch approval to mobile enforcement — both signers and all
+    four source-backed rules must be present. Section 1.4 and 8.8: these are
+    *fixture* expectations checked in a test. No engine may branch on any of
+    these names, limits or subjects.
+    """
+    case_one = [
+        (label, body)
+        for label, body in _extractions()
+        if "case1" in label.replace("_", "").lower()
+    ]
+    require_delivered(case_one, "case 1 ExtractionResult fixture")
+
+    _, body = case_one[0]
+    extraction = s.ExtractionResult.model_validate(body)
+
+    names = {rep.name.value for rep in extraction.representatives}
+    assert {"Ali Yılmaz", "Ayşe Demir"} <= names, names
+
+    by_subject: dict[s.TransactionSubject, list[s.AuthorityRule]] = {}
+    for rule in extraction.rules:
+        by_subject.setdefault(rule.subject, []).append(rule)
+
+    # General: sole below the boundary, joint above it (500.000 TL = 50000000).
+    general = by_subject.get(s.TransactionSubject.GENERAL, [])
+    assert len(general) >= 2, "case 1 needs a sole and a joint general rule"
+    sole = [r for r in general if r.allowed and r.minimum_signature_count == 1]
+    joint = [r for r in general if r.allowed and r.minimum_signature_count >= 2]
+    assert sole and joint
+    assert any(rule.max_amount_minor == 50_000_000 for rule in sole), (
+        "the 500.000 TL boundary must come from the fixture's rule data, "
+        "never from a product constant"
+    )
+
+    # Credit: joint at any amount.
+    credit = [r for r in by_subject.get(s.TransactionSubject.CREDIT, []) if r.allowed]
+    assert credit and all(rule.minimum_signature_count >= 2 for rule in credit)
+
+    # Real estate: present and explicitly not authorized, so the denial has a source.
+    real_estate = by_subject.get(s.TransactionSubject.REAL_ESTATE, [])
+    assert real_estate and not any(rule.allowed for rule in real_estate)
+
+
+def test_case_documents_exist_once_rendered() -> None:
+    """Phase 0 data step 4. Blocked on the AI engineer's H2 notarial text."""
+    cases = load_json(CASES_FILE)
+    assert isinstance(cases, dict)
+    referenced = sorted({case["document"] for case in cases["cases"]})
+    missing = [name for name in referenced if not (DATA_DIR / "documents" / name).is_file()]
+    if missing:
+        pytest.skip(
+            f"Documents not rendered yet: {missing}. They need the AI engineer's "
+            "notarial Turkish text (GAP-10, due H2), then "
+            "`python scripts/render_documents.py` (due H4)."
+        )
+    for name in referenced:
+        assert (DATA_DIR / "documents" / name).stat().st_size > 0

@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "companies": [
+    {
+      "mersis": "0123456789000017",
+      "legal_name": "ABC Teknoloji Ltd. Şti.",
+      "tax_number": "1234567890",
+      "status": "ACTIVE",
+      "representatives": [
+        {
+          "id": "rep_abc_ali",
+          "name": "Ali Yılmaz",
+          "tckn": "123******01",
+          "mode": "SOLE",
+          "status": "ACTIVE",
+          "effective_at": "2024-03-11"
+        },
+        {
+          "id": "rep_abc_ayse",
+          "name": "Ayşe Demir",
+          "tckn": "987******45",
+          "mode": "JOINT",
+          "status": "ACTIVE",
+          "effective_at": "2024-03-11"
+        }
+      ]
+    },
+    {
+      "mersis": "0987654321000023",
+      "legal_name": "Zeta İnşaat A.Ş.",
+      "tax_number": "9876543210",
+      "status": "ACTIVE",
+      "representatives": [
+        {
+          "id": "rep_zeta_kemal",
+          "name": "Kemal Öz",
+          "tckn": "555******22",
+          "mode": "JOINT",
+          "status": "ACTIVE",
+          "effective_at": "2023-09-04"
+        }
+      ]
+    }
+  ]
+}

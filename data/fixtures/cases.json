@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "_comment": [
+    "The four onboarding scenarios from IMPLEMENTATION_PLAN.md section 11.",
+    "These are FIXTURES, NOT WORKFLOWS (section 1.4). A case number may appear",
+    "only in demo routing, fixture loading and test names. application_service,",
+    "the comparison engine, authority_builder and authority_engine never receive",
+    "or inspect one. `expected_verdict` is a test and demo-card assertion; no",
+    "business code may read it, and no engine may branch on any value in here.",
+    "Adding a fifth scenario must require only another entry in this file."
+  ],
+  "cases": [
+    {
+      "case": 1,
+      "title": "Temiz dosya",
+      "description": "Belge, başvuru ve sicil birebir örtüşüyor. Ali Yılmaz tek başına yetkili.",
+      "expected_verdict": "READY",
+      "document": "case1.pdf",
+      "application": {
+        "company_name": "ABC Teknoloji Ltd. Şti.",
+        "tax_number": "1234567890",
+        "mersis": "0123456789000017",
+        "applicant_name": "Ali Yılmaz",
+        "applicant_tckn_masked": "123******01",
+        "branch_code": "kozyatagi01",
+        "identity_verified_at_branch": true
+      },
+      "registry_patch": []
+    },
+    {
+      "case": 2,
+      "title": "Çift imza gerekli",
+      "description": "Şirket ve kimlik bilgileri uyuşuyor, ancak sirküler bu işlem için Ali ve Ayşe'nin birlikte imzasını arıyor.",
+      "expected_verdict": "CO_SIGNER_REQUIRED",
+      "document": "case2.pdf",
+      "application": {
+        "company_name": "ABC Teknoloji Ltd. Şti.",
+        "tax_number": "1234567890",
+        "mersis": "0123456789000017",
+        "applicant_name": "Ali Yılmaz",
+        "applicant_tckn_masked": "123******01",
+        "branch_code": "kozyatagi01",
+        "identity_verified_at_branch": true
+      },
+      "registry_patch": []
+    },
+    {
+      "case": 3,
+      "title": "Başvuru ile belge uyuşmuyor",
+      "description": "Başvuru ABC Teknoloji ve Mehmet Kaya adına; getirilen sirküler Zeta İnşaat'a ait ve Kemal Öz'ü yetkilendiriyor.",
+      "expected_verdict": "MISMATCH",
+      "document": "case3.pdf",
+      "application": {
+        "company_name": "ABC Teknoloji Ltd. Şti.",
+        "tax_number": "1234567890",
+        "mersis": "0123456789000017",
+        "applicant_name": "Mehmet Kaya",
+        "applicant_tckn_masked": "456******07",
+        "branch_code": "kozyatagi01",
+        "identity_verified_at_branch": true
+      },
+      "registry_patch": []
+    },
+    {
+      "case": 4,
+      "title": "Sicilde yetki düşmüş",
+      "description": "Belge case 1 ile aynı ve temiz; ancak sicilde Ali Yılmaz'ın yetkisi düşürülmüş durumda.",
+      "expected_verdict": "REGISTRY_CONFLICT",
+      "document": "case1.pdf",
+      "application": {
+        "company_name": "ABC Teknoloji Ltd. Şti.",
+        "tax_number": "1234567890",
+        "mersis": "0123456789000017",
+        "applicant_name": "Ali Yılmaz",
+        "applicant_tckn_masked": "123******01",
+        "branch_code": "kozyatagi01",
+        "identity_verified_at_branch": true
+      },
+      "registry_patch": [
+        {
+          "mersis": "0123456789000017",
+          "rep_id": "rep_abc_ali",
+          "status": "REMOVED"
+        }
+      ]
+    }
+  ]
+}
