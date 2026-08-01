@@ -366,6 +366,83 @@ export type AuthorityRecordView = {
 };
 
 /* -------------------------------------------------------------------------- */
+/* 8b. Bank-API resource views — plan section 8.3                             */
+/* -------------------------------------------------------------------------- */
+/* Mirrors api/schemas.py section 11. Bank-owned resources are snake_case;    */
+/* the embedded AI extraction stays camelCase where ExtractionResult defines  */
+/* it (alignment guide section 7).                                            */
+
+export type ApplicationView = {
+  id: number;
+  company_name: string;
+  tax_number: string;
+  mersis: string;
+  applicant_name: string;
+  applicant_tckn_masked: string;
+  branch_code: string;
+  identity_verified_at_branch: boolean;
+  status: ApplicationStatus;
+  version: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DocumentView = {
+  id: number;
+  application_id: number;
+  original_filename: string;
+  mime_type: "application/pdf" | "image/png" | "image/jpeg";
+  size_bytes: number;
+  document_sha256: string;
+  page_count: number;
+  original_seen: boolean;
+  scanned_by: string;
+  created_at: string;
+};
+
+/** One row of the append-only review history (alignment guide section 7). */
+export type CorrectionView = {
+  id: number;
+  field_path: string;
+  old_value_json: { value: unknown };
+  new_value_json: { value: unknown };
+  reviewer: string;
+  reason: string;
+  created_at: string;
+};
+
+/**
+ * The single server-backed payload used to restore the branch screen.
+ * `extraction` is already the effective, corrected projection — the raw
+ * database row is never exposed (guide section 7).
+ */
+export type ApplicationAggregate = {
+  application: ApplicationView;
+  document: DocumentView | null;
+  extraction: ExtractionResult | null;
+  report: CheckReport | null;
+  corrections: CorrectionView[];
+  authority: AuthorityRecordView | null;
+};
+
+export type AuthorityHistoryResponse = {
+  items: AuthorityRecordView[];
+};
+
+export type AuditItem = {
+  id: number;
+  actor: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  correlation_id: string;
+  detail: Record<string, unknown>;
+  created_at: string;
+};
+
+export type AuditHistoryResponse = { items: AuditItem[] };
+
+/* -------------------------------------------------------------------------- */
 /* 9. Standard error body — plan section 5.7                                  */
 /* -------------------------------------------------------------------------- */
 

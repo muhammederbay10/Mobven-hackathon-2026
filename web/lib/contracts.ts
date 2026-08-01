@@ -19,8 +19,15 @@ import { z } from "zod";
 
 import { CHECK_IDS, CORRECTION_PATH_PATTERN, PATTERNS } from "./types";
 import type {
+  ApplicationAggregate,
+  ApplicationView,
+  AuditHistoryResponse,
+  AuditItem,
+  AuthorityHistoryResponse,
   AuthorityRecordView,
   CheckReport,
+  CorrectionView,
+  DocumentView,
   ErrorResponse,
   ExtractionResult,
   Registry,
@@ -405,6 +412,120 @@ export const authorityRecordViewSchema = z
   .strict();
 
 /* -------------------------------------------------------------------------- */
+/* Bank-API resource views — plan section 8.3 / alignment guide section 7     */
+/* -------------------------------------------------------------------------- */
+
+export const applicationStatusSchema = z.enum([
+  "DRAFT",
+  "IDENTITY_VERIFIED",
+  "DOCUMENT_SCANNED",
+  "ANALYZING",
+  "ANALYZED",
+  "APPROVED",
+  "DOC_REQUESTED",
+  "ESCALATED",
+  "ANALYSIS_FAILED",
+]);
+
+export const applicationViewSchema = z
+  .object({
+    id: z.number().int(),
+    company_name: z.string().min(1),
+    tax_number: taxNumber,
+    mersis,
+    applicant_name: z.string().min(1),
+    applicant_tckn_masked: tcknMasked,
+    branch_code: z.string().min(1),
+    identity_verified_at_branch: z.boolean(),
+    status: applicationStatusSchema,
+    version: z.number().int().min(1),
+    created_at: isoInstant,
+    updated_at: isoInstant,
+  })
+  .strict();
+
+export const documentViewSchema = z
+  .object({
+    id: z.number().int(),
+    application_id: z.number().int(),
+    original_filename: z.string(),
+    mime_type: z.enum(["application/pdf", "image/png", "image/jpeg"]),
+    size_bytes: z.number().int().min(1),
+    document_sha256: sha256,
+    page_count: z.number().int().min(1),
+    original_seen: z.boolean(),
+    scanned_by: z.string(),
+    created_at: isoInstant,
+  })
+  .strict();
+
+/**
+ * The `{value: ...}` box a correction stores its old/new values in. `z.custom`
+ * instead of `z.object({value: z.unknown()})` because zod infers an *optional*
+ * key for `unknown`, which would break the drift guard against the hand-written
+ * `{ value: unknown }`. The runtime check is equivalent to a strict object with
+ * exactly one required `value` key.
+ */
+const correctionValueBoxSchema = z.custom<{ value: unknown }>(
+  (data) =>
+    typeof data === "object" &&
+    data !== null &&
+    !Array.isArray(data) &&
+    "value" in data &&
+    Object.keys(data).every((key) => key === "value"),
+  { message: "expected an object with exactly one 'value' key" },
+);
+
+export const correctionViewSchema = z
+  .object({
+    id: z.number().int(),
+    field_path: z.string().regex(CORRECTION_PATH_PATTERN),
+    old_value_json: correctionValueBoxSchema,
+    new_value_json: correctionValueBoxSchema,
+    reviewer: z.string().min(1),
+    reason: z.string().min(1),
+    created_at: isoInstant,
+  })
+  .strict();
+
+/**
+ * The single server-backed payload that restores the branch screen. The
+ * embedded `extraction` is the effective (corrected) projection and is parsed
+ * with the full AI flat-contract schema; the raw database row never appears.
+ */
+export const applicationAggregateSchema = z
+  .object({
+    application: applicationViewSchema,
+    document: documentViewSchema.nullable(),
+    extraction: extractionResultSchema.nullable(),
+    report: checkReportSchema.nullable(),
+    corrections: z.array(correctionViewSchema),
+    authority: authorityRecordViewSchema.nullable(),
+  })
+  .strict();
+
+export const authorityHistoryResponseSchema = z
+  .object({ items: z.array(authorityRecordViewSchema) })
+  .strict();
+
+export const auditItemSchema = z
+  .object({
+    id: z.number().int(),
+    actor: z.string().min(1),
+    action: z.string().min(1),
+    entity_type: z.string().min(1),
+    entity_id: z.string().nullable(),
+    correlation_id: z.string().min(1),
+    detail: z.record(z.unknown()),
+    created_at: isoInstant,
+  })
+  .strict();
+
+export const auditHistoryResponseSchema = z
+  .object({ items: z.array(auditItemSchema) })
+  .strict();
+
+/* -------------------------------------------------------------------------- */
 /* Standard error body — plan section 5.7                                     */
 /* -------------------------------------------------------------------------- */
 
@@ -538,6 +659,31 @@ const _errorResponseInSync: MutuallyAssignable<
   z.infer<typeof errorResponseSchema>,
   ErrorResponse
 > = true;
+const _applicationViewInSync: MutuallyAssignable<
+  z.infer<typeof applicationViewSchema>,
+  ApplicationView
+> = true;
+const _documentViewInSync: MutuallyAssignable<
+  z.infer<typeof documentViewSchema>,
+  DocumentView
+> = true;
+const _correctionViewInSync: MutuallyAssignable<
+  z.infer<typeof correctionViewSchema>,
+  CorrectionView
+> = true;
+const _applicationAggregateInSync: MutuallyAssignable<
+  z.infer<typeof applicationAggregateSchema>,
+  ApplicationAggregate
+> = true;
+const _authorityHistoryInSync: MutuallyAssignable<
+  z.infer<typeof authorityHistoryResponseSchema>,
+  AuthorityHistoryResponse
+> = true;
+const _auditItemInSync: MutuallyAssignable<z.infer<typeof auditItemSchema>, AuditItem> = true;
+const _auditHistoryInSync: MutuallyAssignable<
+  z.infer<typeof auditHistoryResponseSchema>,
+  AuditHistoryResponse
+> = true;
 
 void _extractionResultInSync;
 void _checkReportInSync;
@@ -545,3 +691,10 @@ void _registryInSync;
 void _transactionDecisionInSync;
 void _authorityRecordViewInSync;
 void _errorResponseInSync;
+void _applicationViewInSync;
+void _documentViewInSync;
+void _correctionViewInSync;
+void _applicationAggregateInSync;
+void _authorityHistoryInSync;
+void _auditItemInSync;
+void _auditHistoryInSync;

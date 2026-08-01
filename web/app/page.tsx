@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { listDemoCases, loadDemoCase, resetDemo, type DemoCaseCard } from "@/lib/api";
+import { clearNavigationState } from "@/lib/clientState";
 import { ONBOARDING_VERDICT_LABEL, ONBOARDING_VERDICT_STATUS } from "@/lib/format";
 
 import { CardButton, PageHeading, Panel } from "@/components/Layout";
@@ -12,18 +13,15 @@ import { StatusBadge } from "@/components/Status";
 import { Button, Pill } from "@/components/UI";
 
 /**
- * `/` — demo control panel (plan section 10.2, task P1-04).
+ * `/` — demo control panel (plan section 10.2, task P1-04 + Phase 4 polish).
  *
  * Loading a case calls the real backend endpoint and routes using the
  * persistent application ID it returns; nothing about the outcome is decided
- * here. `application_service`, the comparison engine and the authority
- * services never see a case number (plan sections 1.4 and 18) — this page is
- * the one place that number is allowed to exist, exactly as fixture-loading
- * demo routing.
+ * here. This page is the only place a case number is allowed to exist.
  *
- * Not yet implemented: keyboard shortcuts 1-4 (Phase 4 frontend step 1) and
- * skip-to-Act-2 (plan section 10.2 — needs a backend endpoint or committed
- * pre-approved fixture that does not exist yet).
+ * "Skip to Act 2" stays a disabled control: no backend endpoint can create a
+ * pre-approved authority, and faking one client-side is exactly what the
+ * alignment guide forbids (section 10.2 / blocker 1).
  */
 
 const FLOW = [
@@ -34,7 +32,10 @@ const FLOW = [
   "5 · Sicil: yetkiyi düşür, tekrar dene",
 ];
 
-type LoadState = { kind: "idle" } | { kind: "pending"; case: number } | { kind: "error"; case: number; error: unknown };
+type LoadState =
+  | { kind: "idle" }
+  | { kind: "pending"; case: number }
+  | { kind: "error"; case: number; error: unknown };
 
 export default function ControlPanelPage() {
   const router = useRouter();
@@ -42,6 +43,7 @@ export default function ControlPanelPage() {
   const [listError, setListError] = useState<unknown>(null);
   const [loadState, setLoadState] = useState<LoadState>({ kind: "idle" });
   const [resetState, setResetState] = useState<"idle" | "pending" | "done" | "error">("idle");
+  const loadAbortRef = useRef<AbortController | null>(null);
 
   const fetchCases = useCallback(async (signal?: AbortSignal) => {
     setListError(null);
@@ -61,20 +63,61 @@ export default function ControlPanelPage() {
     return () => controller.abort();
   }, [fetchCases]);
 
-  async function handleLoadCase(caseNumber: number) {
-    setLoadState({ kind: "pending", case: caseNumber });
-    try {
-      const { application_id } = await loadDemoCase(caseNumber);
-      router.push(`/branch?application=${application_id}`);
-    } catch (error) {
-      setLoadState({ kind: "error", case: caseNumber, error });
+  const handleLoadCase = useCallback(
+    async (caseNumber: number) => {
+      // Loading a different case aborts the old request and clears its result
+      // visually; server state remains authoritative (guide section 10).
+      loadAbortRef.current?.abort();
+      const controller = new AbortController();
+      loadAbortRef.current = controller;
+      setLoadState({ kind: "pending", case: caseNumber });
+      try {
+        const { application_id } = await loadDemoCase(caseNumber, controller.signal);
+        router.push(`/branch?application=${application_id}`);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setLoadState({ kind: "error", case: caseNumber, error });
+      }
+    },
+    [router],
+  );
+
+  // Keyboard shortcuts 1-4 — only when focus is not inside an interactive
+  // element (guide section 10). Same handler as clicking the card.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        if (
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tag === "SELECT" ||
+          tag === "BUTTON" ||
+          target.isContentEditable
+        ) {
+          return;
+        }
+      }
+      const caseNumber = Number(event.key);
+      if (!cases || !Number.isInteger(caseNumber)) return;
+      if (!cases.some((demoCase) => demoCase.case === caseNumber)) return;
+      if (loadState.kind === "pending") return;
+      void handleLoadCase(caseNumber);
     }
-  }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [cases, loadState, handleLoadCase]);
 
   async function handleReset() {
     setResetState("pending");
     try {
       await resetDemo();
+      // Old database IDs no longer exist — drop remembered navigation and any
+      // stale case-load result (guide section 16).
+      clearNavigationState();
+      setLoadState({ kind: "idle" });
       setResetState("done");
       await fetchCases();
     } catch {
@@ -100,9 +143,13 @@ export default function ControlPanelPage() {
       </div>
 
       {resetState === "done" ? (
-        <p className="mb-4 text-[13px] text-success">Demo temel duruma döndürüldü.</p>
+        <p className="mb-4 text-[13px] text-success" role="status">
+          Demo temel duruma döndürüldü. Eski başvuru numaraları artık geçersiz.
+        </p>
       ) : resetState === "error" ? (
-        <p className="mb-4 text-[13px] text-danger">Sıfırlama tamamlanamadı. Tekrar deneyin.</p>
+        <p className="mb-4 text-[13px] text-danger" role="alert">
+          Sıfırlama tamamlanamadı. Tekrar deneyin.
+        </p>
       ) : null}
 
       <Panel>
@@ -122,8 +169,14 @@ export default function ControlPanelPage() {
                   <CardButton
                     onClick={() => handleLoadCase(demoCase.case)}
                     disabled={loadState.kind === "pending"}
+                    aria-keyshortcuts={String(demoCase.case)}
                   >
-                    <div className="mb-1.5 text-[11px] text-ink-muted">Vaka {demoCase.case}</div>
+                    <div className="mb-1.5 flex items-center justify-between text-[11px] text-ink-muted">
+                      <span>Vaka {demoCase.case}</span>
+                      <kbd className="rounded-[5px] border border-border px-1.5 py-px font-mono text-[10px]">
+                        {demoCase.case}
+                      </kbd>
+                    </div>
                     <div className="mb-1.5 text-[14px] font-semibold text-ink">{demoCase.title}</div>
                     <p className="text-[12.5px] leading-5 text-ink-secondary">
                       {demoCase.description}
@@ -136,7 +189,9 @@ export default function ControlPanelPage() {
                     </div>
                   </CardButton>
                   {pending ? (
-                    <p className="px-1 text-[12px] text-ink-muted">Yükleniyor…</p>
+                    <p className="px-1 text-[12px] text-ink-muted" role="status">
+                      Vaka {demoCase.case} yükleniyor…
+                    </p>
                   ) : null}
                   {failed ? (
                     <div className="px-1">
@@ -156,6 +211,21 @@ export default function ControlPanelPage() {
             {step}
           </Pill>
         ))}
+      </div>
+
+      <div className="mt-4">
+        <Button
+          type="button"
+          disabled
+          title="Sunucu tarafında ön onaylı yetki oluşturan bir uç nokta henüz yok; istemci tarafında taklit edilmez."
+        >
+          Doğrudan 2. perdeye geç (backend bekliyor)
+        </Button>
+        <p className="mt-1.5 max-w-xl text-[11.5px] text-ink-muted">
+          Geliştirici notu: bu kontrol, onaylı bir başvuru + yetki kaydını sunucuda oluşturan bir
+          demo uç noktası eklenene kadar devre dışıdır. Yerel durumla “onaylanmış gibi” yapmak
+          hizalama rehberince yasak.
+        </p>
       </div>
     </>
   );

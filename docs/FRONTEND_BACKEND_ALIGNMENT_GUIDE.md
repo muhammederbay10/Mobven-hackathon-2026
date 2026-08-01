@@ -99,8 +99,8 @@ Frontend:
 
 ```powershell
 cd web
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
 
 The browser talks only to the bank API on port 8000. It must never call the AI
@@ -799,10 +799,10 @@ Before handoff run:
 
 ```powershell
 cd web
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm build
+npm run typecheck
+npm run lint
+npm run test
+npm run build
 ```
 
 Then run the backend suite from the repository root to confirm the frontend

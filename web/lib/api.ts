@@ -14,14 +14,33 @@
  * payloads belongs to the API (section 10.1).
  */
 
+import { z } from "zod";
+
+import {
+  applicationAggregateSchema,
+  applicationViewSchema,
+  auditHistoryResponseSchema,
+  authorityHistoryResponseSchema,
+  authorityRecordViewSchema,
+  documentViewSchema,
+  registryCompanySchema,
+  registrySchema,
+  transactionDecisionSchema,
+} from "./contracts";
 import type {
+  ApplicationAggregate,
   ApplicationDecisionRequest,
+  ApplicationView,
+  AuditHistoryResponse,
+  AuthorityHistoryResponse,
   AuthorityRecordView,
   AuthorizeTransactionRequest,
   CosignTransactionRequest,
   CreateApplicationRequest,
+  DocumentView,
   ErrorCode,
   ErrorResponse,
+  ExtractionCorrectionRequest,
   OnboardingVerdict,
   Registry,
   RegistryCompany,
@@ -132,6 +151,34 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return payload as T;
 }
 
+/**
+ * `request` plus strict Zod validation of the successful body (alignment guide
+ * section 8: "Parse successful JSON with the corresponding Zod schema inside
+ * lib/api.ts. Do not defer response validation to page components.").
+ *
+ * A 2xx body that fails its schema is contract drift, which the standard error
+ * flow treats as a non-retryable internal problem — retrying cannot produce a
+ * differently-shaped response.
+ */
+async function requestParsed<Schema extends z.ZodTypeAny>(
+  path: string,
+  schema: Schema,
+  options: RequestOptions = {},
+): Promise<z.infer<Schema>> {
+  const payload = await request<unknown>(path, options);
+  const parsed = schema.safeParse(payload);
+  if (!parsed.success) {
+    throw new ApiError({
+      code: "INTERNAL_ERROR",
+      message: "Sunucu yanıtı beklenen sözleşmeye uymuyor.",
+      status: 200,
+      retryable: false,
+      details: { zod_issues: parsed.error.issues.slice(0, 20) },
+    });
+  }
+  return parsed.data as z.infer<Schema>;
+}
+
 function safeJsonParse(text: string): unknown {
   try {
     return JSON.parse(text);
@@ -214,35 +261,72 @@ export const resetDemo = (signal?: AbortSignal) =>
 /* -------------------------------------------------------------------------- */
 /* Applications and documents — plan section 8.3                              */
 /* -------------------------------------------------------------------------- */
-/* Implemented by tasks P1-02, P1-03 and P2-02. The signatures live here now so
-   feature work adds a body, not a new place that knows about `fetch`.        */
 
-export const createApplication = (payload: CreateApplicationRequest, signal?: AbortSignal) =>
-  request<{ id: number }>("/api/applications", { method: "POST", body: payload, signal });
+export const createApplication = (
+  payload: CreateApplicationRequest,
+  signal?: AbortSignal,
+): Promise<ApplicationView> =>
+  requestParsed("/api/applications", applicationViewSchema, {
+    method: "POST",
+    body: payload,
+    signal,
+  });
+
+/** The one server-backed read that restores the whole branch screen. */
+export const getApplication = (
+  applicationId: number,
+  signal?: AbortSignal,
+): Promise<ApplicationAggregate> =>
+  requestParsed(`/api/applications/${applicationId}`, applicationAggregateSchema, { signal });
 
 export const uploadDocument = (
   applicationId: number,
   file: File,
   fields: { original_seen: boolean; scanned_by: string },
   signal?: AbortSignal,
-) => {
+): Promise<DocumentView> => {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("original_seen", String(fields.original_seen));
   formData.append("scanned_by", fields.scanned_by);
-  return request<{ id: number }>(`/api/applications/${applicationId}/document`, {
+  return requestParsed(`/api/applications/${applicationId}/document`, documentViewSchema, {
     method: "POST",
     formData,
     signal,
   });
 };
 
+/**
+ * Runs (or retries) the AI analysis. Idempotent for an already-ANALYZED
+ * application: the backend returns the existing report.
+ */
+export const analyzeApplication = (
+  applicationId: number,
+  signal?: AbortSignal,
+): Promise<ApplicationAggregate> =>
+  requestParsed(`/api/applications/${applicationId}/analyze`, applicationAggregateSchema, {
+    method: "POST",
+    signal,
+  });
+
+/** 409 STALE_CORRECTION when `expected_old_value` no longer matches. */
+export const correctExtraction = (
+  applicationId: number,
+  payload: ExtractionCorrectionRequest,
+  signal?: AbortSignal,
+): Promise<ApplicationAggregate> =>
+  requestParsed(`/api/applications/${applicationId}/extraction`, applicationAggregateSchema, {
+    method: "PATCH",
+    body: payload,
+    signal,
+  });
+
 export const decideApplication = (
   applicationId: number,
   payload: ApplicationDecisionRequest,
   signal?: AbortSignal,
-) =>
-  request<unknown>(`/api/applications/${applicationId}/decision`, {
+): Promise<ApplicationAggregate> =>
+  requestParsed(`/api/applications/${applicationId}/decision`, applicationAggregateSchema, {
     method: "POST",
     body: payload,
     signal,
@@ -256,8 +340,8 @@ export const documentPageUrl = (documentId: number, page: number) =>
 /* Registry — plan section 8.4                                                */
 /* -------------------------------------------------------------------------- */
 
-export const getRegistry = (signal?: AbortSignal) =>
-  request<Registry>("/api/registry", { signal });
+export const getRegistry = (signal?: AbortSignal): Promise<Registry> =>
+  requestParsed("/api/registry", registrySchema, { signal });
 
 /** GAP-09: representatives are addressed by stable ID, never by name. */
 export const updateRegistryRepresentative = (
@@ -265,8 +349,8 @@ export const updateRegistryRepresentative = (
   repId: string,
   payload: RegistryRepresentativeUpdateRequest,
   signal?: AbortSignal,
-) =>
-  request<RegistryCompany>(`/api/registry/${mersis}/reps/${repId}`, {
+): Promise<RegistryCompany> =>
+  requestParsed(`/api/registry/${mersis}/reps/${repId}`, registryCompanySchema, {
     method: "PUT",
     body: payload,
     signal,
@@ -276,14 +360,33 @@ export const updateRegistryRepresentative = (
 /* Authority and transactions — plan section 8.5                              */
 /* -------------------------------------------------------------------------- */
 
-export const getAuthority = (mersis: string, signal?: AbortSignal) =>
-  request<AuthorityRecordView>(`/api/authority/${mersis}`, { signal });
+export const getAuthority = (mersis: string, signal?: AbortSignal): Promise<AuthorityRecordView> =>
+  requestParsed(`/api/authority/${mersis}`, authorityRecordViewSchema, { signal });
+
+export const getAuthorityHistory = (
+  mersis: string,
+  signal?: AbortSignal,
+): Promise<AuthorityHistoryResponse> =>
+  requestParsed(`/api/authority/${mersis}/history`, authorityHistoryResponseSchema, { signal });
+
+export const getAuditHistory = (
+  filters?: { entity_type?: string; entity_id?: string },
+  signal?: AbortSignal,
+): Promise<AuditHistoryResponse> => {
+  const params = new URLSearchParams();
+  if (filters?.entity_type) params.set("entity_type", filters.entity_type);
+  if (filters?.entity_id) params.set("entity_id", filters.entity_id);
+  const query = params.toString();
+  return requestParsed(`/api/audit${query ? `?${query}` : ""}`, auditHistoryResponseSchema, {
+    signal,
+  });
+};
 
 export const authorizeTransaction = (
   payload: AuthorizeTransactionRequest,
   signal?: AbortSignal,
-) =>
-  request<TransactionDecision>("/api/transactions/authorize", {
+): Promise<TransactionDecision> =>
+  requestParsed("/api/transactions/authorize", transactionDecisionSchema, {
     method: "POST",
     body: payload,
     signal,
@@ -293,15 +396,19 @@ export const cosignTransaction = (
   transactionId: number,
   payload: CosignTransactionRequest,
   signal?: AbortSignal,
-) =>
-  request<TransactionDecision>(`/api/transactions/${transactionId}/cosign`, {
+): Promise<TransactionDecision> =>
+  requestParsed(`/api/transactions/${transactionId}/cosign`, transactionDecisionSchema, {
     method: "POST",
     body: payload,
     signal,
   });
 
-export const listTransactions = (mersis: string, signal?: AbortSignal) =>
-  request<TransactionDecision[]>(
+export const listTransactions = (
+  mersis: string,
+  signal?: AbortSignal,
+): Promise<TransactionDecision[]> =>
+  requestParsed(
     `/api/transactions?mersis=${encodeURIComponent(mersis)}`,
+    z.array(transactionDecisionSchema),
     { signal },
   );

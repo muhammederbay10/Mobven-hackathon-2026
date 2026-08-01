@@ -224,6 +224,23 @@ body {
       box-shadow: 0 0 0 3px #ffd84d;
     }
   }
+  /* Flash on the rendered document page when an evidence item is selected.
+     The flat contract has no bounding box, so the whole page surface flashes —
+     never a pretend-precise rectangle (alignment guide section 10). */
+  .viewer-flash {
+    animation: viewer-flash 0.9s ease-out 1;
+  }
+  @keyframes viewer-flash {
+    0% {
+      box-shadow:
+        0 0 0 4px var(--color-info-soft),
+        0 0 0 1px var(--color-info);
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+
   .paper-seal {
     position: absolute;
     right: 22px;

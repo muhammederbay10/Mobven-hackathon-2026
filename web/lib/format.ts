@@ -11,7 +11,14 @@
  * decide anything.
  */
 
-import type { CheckStatus, OnboardingVerdict, TransactionVerdict } from "./types";
+import type {
+  ApplicationStatus,
+  AuthorityMode,
+  CheckStatus,
+  OnboardingVerdict,
+  TransactionSubject,
+  TransactionVerdict,
+} from "./types";
 
 const TRY_FORMAT = new Intl.NumberFormat("tr-TR", {
   style: "currency",
@@ -81,6 +88,22 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * Turkish-formatted TL input -> integer kuruş, or `null` when unparseable.
+ * Accepts `1.200.000`, `1.200.000,50`, `250000` and optional `₺`/`TL` noise.
+ * String arithmetic only — no float division that could shave a kuruş off a
+ * limit comparison (the comparison itself always happens on the backend).
+ */
+export function parseAmountToMinor(input: string): number | null {
+  const cleaned = input.replace(/\s|₺/g, "").replace(/TL$/i, "");
+  if (!cleaned) return null;
+  const normalized = cleaned.replace(/\./g, "").replace(",", ".");
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null;
+  const [lira = "0", kurus = ""] = normalized.split(".");
+  const minor = Number(lira) * 100 + Number(`${kurus}00`.slice(0, 2));
+  return Number.isSafeInteger(minor) ? minor : null;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Turkish labels                                                             */
 /* -------------------------------------------------------------------------- */
@@ -131,3 +154,44 @@ export const CHECK_STATUS_LABEL: Record<CheckStatus, string> = {
   amber: "Dikkat",
   red: "Engel",
 };
+
+/** Backend application lifecycle states, for the branch stepper and badges. */
+export const APPLICATION_STATUS_LABEL: Record<ApplicationStatus, string> = {
+  DRAFT: "Taslak — kimlik doğrulanmadı",
+  IDENTITY_VERIFIED: "Kimlik doğrulandı",
+  DOCUMENT_SCANNED: "Belge tarandı",
+  ANALYZING: "Analiz ediliyor",
+  ANALYZED: "Analiz tamamlandı",
+  APPROVED: "Onaylandı",
+  DOC_REQUESTED: "Yeni belge istendi",
+  ESCALATED: "Uyum birimine iletildi",
+  ANALYSIS_FAILED: "Analiz başarısız",
+};
+
+export const TRANSACTION_SUBJECT_LABEL: Record<TransactionSubject, string> = {
+  GENERAL: "Genel işlem",
+  CREDIT: "Kredi kullanımı",
+  REAL_ESTATE: "Gayrimenkul",
+};
+
+export const AUTHORITY_MODE_LABEL: Record<AuthorityMode, string> = {
+  SOLE: "Münferit",
+  JOINT: "Müşterek",
+  LIMITED: "Sınırlı",
+  UNKNOWN: "Belirsiz",
+};
+
+/**
+ * Lowercase AI rule scopes -> Turkish display labels (guide section 13:
+ * "rules with lowercase scope rendered as Turkish labels"). Unknown scopes
+ * fall back to the raw contract value rather than guessing a meaning.
+ */
+const RULE_SCOPE_LABEL: Record<string, string> = {
+  general: "Genel işlemler",
+  credit: "Kredi işlemleri",
+  real_estate: "Gayrimenkul işlemleri",
+};
+
+export function formatRuleScope(scope: string): string {
+  return RULE_SCOPE_LABEL[scope] ?? scope;
+}
