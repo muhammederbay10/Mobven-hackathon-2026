@@ -9,7 +9,10 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
-from ai.turkish import strip_company_suffix, tr_normalize
+if __package__:
+    from .turkish import strip_company_suffix, tr_normalize
+else:  # uvicorn main:app started from inside ai/
+    from turkish import strip_company_suffix, tr_normalize
 
 
 SCHEMA_VERSION = "1.0"
