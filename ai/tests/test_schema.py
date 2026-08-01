@@ -38,6 +38,7 @@ def extraction_example() -> dict[str, Any]:
         "validUntil": "2028-03-15",
         "representatives": [
             {
+                "id": "rep-1",
                 "name": "Ali Yılmaz",
                 "nationalId": "123******01",
                 "title": "Müdür",
@@ -80,6 +81,114 @@ def test_extraction_result_accepts_frozen_contract() -> None:
     assert payload["company"]["taxNumber"] == "1234567890"
     assert payload["representatives"][0]["coSigners"] == []
     assert payload["evidence"]["authorityClause"].startswith("Şirketi")
+
+
+def test_representative_id_is_required_and_stable() -> None:
+    payload = extraction_example()
+    payload["representatives"][0]["id"] = "rep-1"
+
+    result = ExtractionResult.model_validate(payload)
+
+    assert result.representatives[0].id == "rep-1"
+
+    del payload["representatives"][0]["id"]
+    with pytest.raises(ValidationError, match="Field required"):
+        ExtractionResult.model_validate(payload)
+
+
+def test_money_fields_are_integer_kurus_not_float() -> None:
+    payload = extraction_example()
+    payload["representatives"][0]["limits"] = 50_000_000  # 500,000.00 TL
+
+    result = ExtractionResult.model_validate(payload)
+
+    assert result.representatives[0].limits == 50_000_000
+    assert isinstance(result.representatives[0].limits, int)
+
+    payload["representatives"][0]["limits"] = 500_000.5
+    with pytest.raises(ValidationError, match="should be a valid integer"):
+        ExtractionResult.model_validate(payload)
+
+
+def test_extraction_rule_blocked_scope_carries_no_mode_or_cosigners() -> None:
+    payload = extraction_example()
+    payload["rules"] = [
+        {
+            "scope": "real_estate",
+            "threshold": None,
+            "mode": None,
+            "coSigners": [],
+            "blocked": True,
+            "evidence": {"page": 1, "quote": "Gayrimenkul işlemleri kapsam dışıdır."},
+        }
+    ]
+
+    result = ExtractionResult.model_validate(payload)
+    assert result.rules[0].blocked is True
+    assert result.rules[0].mode is None
+
+
+def test_extraction_rule_blocked_with_mode_is_rejected() -> None:
+    payload = extraction_example()
+    payload["rules"] = [
+        {
+            "scope": "real_estate",
+            "mode": "SOLE",
+            "blocked": True,
+            "evidence": {"page": 1, "quote": "Gayrimenkul işlemleri kapsam dışıdır."},
+        }
+    ]
+
+    with pytest.raises(ValidationError, match="must not carry a mode"):
+        ExtractionResult.model_validate(payload)
+
+
+def test_extraction_rule_cosigners_reference_representative_ids() -> None:
+    payload = extraction_example()
+    payload["representatives"] = [
+        {**payload["representatives"][0], "id": "rep-1"},
+        {**payload["representatives"][0], "id": "rep-2", "name": "Ayşe Demir",
+         "nationalId": "456******23"},
+    ]
+    payload["rules"] = [
+        {
+            "scope": "general",
+            "mode": "JOINT",
+            "coSigners": ["rep-1", "rep-2"],
+            "evidence": {"page": 1, "quote": "Şirketi müştereken temsile yetkilidir."},
+        }
+    ]
+
+    result = ExtractionResult.model_validate(payload)
+    assert result.rules[0].co_signers == ["rep-1", "rep-2"]
+
+
+def test_extraction_rule_cosigners_reject_unknown_representative_id() -> None:
+    payload = extraction_example()
+    payload["rules"] = [
+        {
+            "scope": "general",
+            "mode": "JOINT",
+            "coSigners": ["rep-1", "rep-99"],
+            "evidence": {"page": 1, "quote": "Şirketi müştereken temsile yetkilidir."},
+        }
+    ]
+
+    with pytest.raises(ValidationError, match="unknown representative id 'rep-99'"):
+        ExtractionResult.model_validate(payload)
+
+
+def test_extraction_rule_without_blocked_requires_mode() -> None:
+    payload = extraction_example()
+    payload["rules"] = [
+        {
+            "scope": "general",
+            "evidence": {"page": 1, "quote": "Şirketi münferiden temsile yetkilidir."},
+        }
+    ]
+
+    with pytest.raises(ValidationError, match="non-blocked rule requires a mode"):
+        ExtractionResult.model_validate(payload)
 
 
 def test_extraction_result_rejects_unknown_fields() -> None:

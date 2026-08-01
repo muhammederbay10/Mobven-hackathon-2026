@@ -102,7 +102,11 @@ def sections() -> list[Section]:
             examples=[
                 call(strip_company_suffix, "ABC Teknoloji Ltd. Şti.", expected="abc teknoloji"),
                 call(strip_company_suffix, "ABC TEKNOLOJİ LİMİTED ŞİRKETİ", expected="abc teknoloji"),
-                call(strip_company_suffix, "Zeta İnşaat San. ve Tic. A.Ş.", expected="zeta insaat"),
+                call(
+                    strip_company_suffix,
+                    "Zeta İnşaat San. ve Tic. A.Ş.",
+                    expected="zeta insaat sanayi ve ticaret",
+                ),
                 call(
                     strip_company_suffix,
                     "Sanayi ve Ticaret Bankası A.Ş.",

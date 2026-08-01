@@ -9,6 +9,7 @@ import pytest
 
 from ai.schema import MaskedNationalId
 from ai.turkish import (
+    canonicalize_masked_id,
     company_equal,
     digits_only,
     masked_id_equal,
@@ -99,7 +100,9 @@ def test_company_legal_forms_reduce_to_the_same_core(written: str) -> None:
 
 
 def test_company_suffix_stripping_handles_the_long_anonim_form() -> None:
-    assert strip_company_suffix("Zeta İnşaat Sanayi ve Ticaret Anonim Şirketi") == "zeta insaat"
+    assert strip_company_suffix("Zeta İnşaat Sanayi ve Ticaret Anonim Şirketi") == (
+        "zeta insaat sanayi ve ticaret"
+    )
     assert company_equal(
         "Zeta İnşaat Sanayi ve Ticaret Anonim Şirketi", "Zeta İnşaat San. ve Tic. A.Ş."
     )
@@ -109,7 +112,7 @@ def test_company_suffix_stripping_handles_the_long_anonim_form() -> None:
     ("written", "core"),
     [
         ("Sanayi ve Ticaret Bankası A.Ş.", "sanayi ve ticaret bankasi"),
-        ("Ve Ve Gıda San. Tic. Ltd. Şti.", "ve ve gida"),
+        ("Ve Ve Gıda San. Tic. Ltd. Şti.", "ve ve gida sanayi ticaret"),
         ("San Marino Turizm A.Ş.", "san marino turizm"),
         ("Kuzey ve Güney Lojistik Limited Şirketi", "kuzey ve guney lojistik"),
     ],
@@ -127,6 +130,8 @@ def test_a_name_made_only_of_legal_form_tokens_keeps_a_core() -> None:
 def test_different_companies_never_compare_equal() -> None:
     assert not company_equal("ABC Teknoloji Ltd. Şti.", "Zeta İnşaat San. ve Tic. A.Ş.")
     assert not company_equal("ABC Teknoloji Ltd. Şti.", "ABC Teknoloji Yazılım Ltd. Şti.")
+    assert not company_equal("ABC Ticaret A.Ş.", "ABC A.Ş.")
+    assert not company_equal("ABC Ticaret", "ABC")
 
 
 def test_digits_only_ignores_formatting() -> None:
@@ -136,10 +141,12 @@ def test_digits_only_ignores_formatting() -> None:
     assert digits_only("123******01") == "12301"
 
 
-def test_masked_id_equality_requires_the_frozen_mask() -> None:
+def test_masked_id_equality_accepts_source_mask_lengths() -> None:
     assert masked_id_equal("123******01", "123******01")
+    assert masked_id_equal("123********01", "123******01")
+    assert canonicalize_masked_id("123********01") == "123******01"
     assert not masked_id_equal("123******01", "123******02")
-    assert not masked_id_equal("123***01", "123***01")
+    assert masked_id_equal("123***01", "123***01")
     assert not masked_id_equal("12345678901", "12345678901")
     assert not masked_id_equal(None, "123******01")
     assert not masked_id_equal("", "")
