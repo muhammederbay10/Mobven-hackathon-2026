@@ -9,6 +9,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from ai.turkish import strip_company_suffix, tr_normalize
+
 
 SCHEMA_VERSION = "1.0"
 MaskedNationalId = Annotated[
@@ -258,9 +260,23 @@ class CircularExtraction(StrictModel):
 
 
 class ExtractionCompany(StrictModel):
+    """Company identity in the flat contract.
+
+    `name` is the printed value and is authoritative for display, evidence and audit.
+    `legal_name_normalized` is derived, non-authoritative and recomputable; it exists
+    only so consumers can compare without re-implementing Turkish normalization.
+    """
+
     name: str
     tax_number: str | None = Field(default=None, alias="taxNumber")
     mersis_number: str | None = Field(default=None, alias="mersisNumber")
+    legal_name_normalized: str | None = Field(default=None, alias="legalNameNormalized")
+
+    @model_validator(mode="after")
+    def derive_legal_name_normalized(self) -> ExtractionCompany:
+        # Derived here rather than in the projection so the two can never disagree.
+        object.__setattr__(self, "legal_name_normalized", strip_company_suffix(self.name))
+        return self
 
 
 class ExtractionNotary(StrictModel):
@@ -270,12 +286,27 @@ class ExtractionNotary(StrictModel):
 
 
 class Representative(StrictModel):
+    """A signatory in the flat contract.
+
+    `name` is the printed value and is authoritative for display, evidence and audit.
+    `name_normalized` is derived, non-authoritative and recomputable. Consumers such as
+    api/ must match people on `name_normalized`; comparing printed names re-introduces
+    Turkish casing bugs (ALİ YILMAZ vs Ali Yılmaz) outside the single source of truth.
+    """
+
     name: str
+    name_normalized: str | None = Field(default=None, alias="nameNormalized")
     national_id: MaskedNationalId | None = Field(default=None, alias="nationalId")
     title: str | None = None
     mode: SignatureMode
     co_signers: list[str] = Field(default_factory=list, alias="coSigners")
     limits: float | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def derive_name_normalized(self) -> Representative:
+        # Derived here rather than in the projection so the two can never disagree.
+        object.__setattr__(self, "name_normalized", tr_normalize(self.name))
+        return self
 
 
 class AuthorityClauseEvidence(StrictModel):
@@ -328,6 +359,52 @@ class CheckReport(StrictModel):
         if check_ids != CHECK_IDS:
             raise ValueError("checks must contain all nine frozen IDs in order")
         return self
+
+
+class InboundModel(BaseModel):
+    """Tolerates unknown fields on the way in.
+
+    Outbound shapes stay strict, but a caller that sends a whole database row — or a registry file
+    a human edited live on stage — must get a report back, never a 422.
+    """
+
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+
+class ApplicationRecord(InboundModel):
+    """The branch application, mirroring the applications table in docs/PLAN.md section 1.3."""
+
+    company_name: str | None = None
+    tax_number: str | None = None
+    mersis: str | None = None
+    applicant_name: str | None = None
+    applicant_tckn: str | None = None
+    branch_code: str | None = None
+    identity_verified_at_branch: bool = False
+
+
+class RegistryRepresentative(InboundModel):
+    """One person in the mock MERSİS registry. Status is free text so a live edit cannot 422."""
+
+    name: str
+    tckn: str | None = None
+    mode: str | None = None
+    status: str = "ACTIVE"
+
+
+class RegistryCompany(InboundModel):
+    name: str | None = None
+    status: str = "ACTIVE"
+    reps: list[RegistryRepresentative] = Field(default_factory=list)
+
+
+class AnalyzeRequest(InboundModel):
+    """POST /analyze body. Registry is keyed by MERSİS number, exactly as data/registry.json is."""
+
+    extraction: ExtractionResult
+    application: ApplicationRecord = Field(default_factory=ApplicationRecord)
+    registry: dict[str, RegistryCompany] = Field(default_factory=dict)
+    as_of: Date | None = None
 
 
 class HealthResponse(StrictModel):
