@@ -11,11 +11,13 @@ from api.config import Settings, get_settings
 from api.db import get_session
 from api.schemas import (
     ApplicationAggregate,
+    ApplicationDecisionRequest,
     ApplicationView,
     CreateApplicationRequest,
     DocumentView,
+    ExtractionCorrectionRequest,
 )
-from api.services import application_service, document_service
+from api.services import analysis_service, application_service, document_service
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
@@ -75,3 +77,56 @@ def get_application(
     session: Annotated[Session, Depends(get_session)],
 ) -> ApplicationAggregate:
     return application_service.aggregate(session, application_id)
+
+
+@router.post("/{application_id}/analyze", response_model=ApplicationAggregate)
+async def analyze_application(
+    application_id: int,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ApplicationAggregate:
+    return await analysis_service.analyze_application(
+        session,
+        application_id,
+        correlation_id=request.state.correlation_id,
+        settings=settings,
+    )
+
+
+@router.patch("/{application_id}/extraction", response_model=ApplicationAggregate)
+async def correct_extraction(
+    application_id: int,
+    payload: ExtractionCorrectionRequest,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ApplicationAggregate:
+    from api.services import correction_service
+
+    return await correction_service.correct_extraction(
+        session,
+        application_id,
+        payload,
+        correlation_id=request.state.correlation_id,
+        settings=settings,
+    )
+
+
+@router.post("/{application_id}/decision", response_model=ApplicationAggregate)
+def decide_application(
+    application_id: int,
+    payload: ApplicationDecisionRequest,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ApplicationAggregate:
+    from api.services import decision_service
+
+    return decision_service.decide_application(
+        session,
+        application_id,
+        payload,
+        correlation_id=request.state.correlation_id,
+        settings=settings,
+    )

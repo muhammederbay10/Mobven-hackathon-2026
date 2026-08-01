@@ -29,14 +29,27 @@ python -m uvicorn api.main:app --reload --port 8000
 | GET | `/api/demo/cases` | case cards for the control panel |
 | POST | `/api/demo/load-case/{n}` | 201 `{application_id}`; `DEMO_MODE` guarded |
 | POST | `/api/demo/reset` | 200 `{ok:true}`; `DEMO_MODE` guarded |
+| POST | `/api/demo/cache/prewarm` | validate demo PDFs and seed the extraction cache |
+| POST | `/api/demo/cache/clear` | clear all or one document hash from the cache |
 | POST | `/api/applications` | create and persist a branch application |
 | GET | `/api/applications/{id}` | aggregate branch state for refresh/restore |
 | POST | `/api/applications/{id}/document` | attested PDF/PNG/JPEG upload and page rendering |
+| POST | `/api/applications/{id}/analyze` | idempotent stub/live/replay analysis orchestration |
+| PATCH | `/api/applications/{id}/extraction` | ordered, optimistic, append-only corrections + re-analysis |
+| POST | `/api/applications/{id}/decision` | request/escalate/approve and create authority |
 | GET | `/api/documents/{id}/page/{n}` | validated rendered PNG page |
+| GET | `/api/registry` | current simulated registry envelope |
+| PUT | `/api/registry/{mersis}/reps/{rep_id}` | stable-ID representative status update |
+| GET | `/api/authority/{mersis}` | active authority joined with current registry dates |
+| GET | `/api/authority/{mersis}/history` | versioned authority history |
+| POST | `/api/transactions/authorize` | persist and evaluate a mobile transaction |
+| POST | `/api/transactions/{id}/cosign` | revalidate and complete/reject a pending transaction |
+| GET | `/api/transactions?mersis=...` | transaction decision history |
+| GET | `/api/audit` | filtered append-only audit history |
 
-Analysis, decisions, authority and transactions remain later Phase 1/Phase 2 work. The AI schema
-now agrees with the full-stack mirrors, but live document analysis remains gated on delivery of
-AI `POST /extract`. Stub/replay integration can proceed independently.
+Backend Phases 1-5 are implemented. The offline fixture and replay paths are executable without
+the AI process. Live document extraction remains gated only on delivery and verification of AI
+`POST /extract`; set `AI_EXTRACT_AVAILABLE=true` after that handoff passes the contract tests.
 
 ## Configuration
 

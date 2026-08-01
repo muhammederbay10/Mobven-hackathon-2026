@@ -175,6 +175,7 @@ def aggregate(session: Session, application_id: int) -> ApplicationAggregate:
     ).first()
 
     extraction = None
+    extraction_payload = None
     report = None
     corrections: list[dict[str, object]] = []
     if document is not None:
@@ -209,6 +210,9 @@ def aggregate(session: Session, application_id: int) -> ApplicationAggregate:
                 }
                 for row in correction_rows
             ]
+            from api.services.extraction_service import effective_payload
+
+            extraction_payload = effective_payload(session, extraction)
 
     authority = session.exec(
         select(AuthorityRecord)
@@ -218,24 +222,14 @@ def aggregate(session: Session, application_id: int) -> ApplicationAggregate:
 
     authority_payload = None
     if authority is not None:
-        authority_payload = {
-            "id": authority.id,
-            "mersis": authority.mersis,
-            "version": authority.version,
-            "status": authority.status.value,
-            "source_application_id": authority.source_application_id,
-            "source_document_id": authority.source_document_id,
-            "verified_at": to_iso_instant(authority.verified_at),
-            "verified_by": authority.verified_by,
-            "valid_until": authority.valid_until,
-            "persons": authority.persons,
-            "rules": authority.rules,
-        }
+        from api.services.authority_service import view
+
+        authority_payload = view(authority)
 
     return ApplicationAggregate(
         application=application_view(application),
         document=document_view(document) if document is not None else None,
-        extraction=extraction.payload if extraction is not None else None,
+        extraction=extraction_payload,
         report=report.payload if report is not None else None,
         corrections=corrections,
         authority=authority_payload,

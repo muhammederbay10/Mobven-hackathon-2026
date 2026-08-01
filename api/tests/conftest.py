@@ -86,6 +86,11 @@ def demo_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
     shutil.copy(REGISTRY_SEED_FILE, data_dir / "registry.seed.json")
     shutil.copy(CASES_FILE, data_dir / "fixtures" / "cases.json")
+    for fixture_dir in (EXTRACTION_FIXTURES_DIR, REPORT_FIXTURES_DIR):
+        if fixture_dir.is_dir():
+            shutil.copytree(fixture_dir, data_dir / "fixtures" / fixture_dir.name)
+    for document in (DATA_DIR / "documents").glob("case[1-3].pdf"):
+        shutil.copy(document, data_dir / "documents" / document.name)
 
     monkeypatch.setenv("DATA_DIR", str(data_dir))
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{(tmp_path / 'test.db').as_posix()}")

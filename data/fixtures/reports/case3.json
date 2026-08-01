@@ -1,0 +1,14 @@
+{
+  "verdict": "MISMATCH",
+  "checks": [
+    {"id":"company_name_match","status":"red","title":"Şirket unvanı","reason":"Belgedeki şirket başvurudan farklı.","evidence":{}},
+    {"id":"tax_number_match","status":"red","title":"Vergi numarası","reason":"Vergi numarası eşleşmiyor.","evidence":{}},
+    {"id":"mersis_number_match","status":"red","title":"MERSİS numarası","reason":"MERSİS numarası eşleşmiyor.","evidence":{}},
+    {"id":"applicant_in_document","status":"red","title":"Başvuru sahibi","reason":"Başvuru sahibi belgede yer almıyor.","evidence":{}},
+    {"id":"identity_match","status":"red","title":"Kimlik","reason":"Kimlik bilgisi belge temsilcisiyle eşleşmiyor.","evidence":{}},
+    {"id":"authority_mode","status":"green","title":"Yetki şekli","reason":"Belgede bir yetki şekli tespit edildi.","evidence":{}},
+    {"id":"registry_status","status":"green","title":"Sicil durumu","reason":"Başvuru şirketi sicilde aktif.","evidence":{}},
+    {"id":"registry_representative_match","status":"red","title":"Sicil temsilcisi","reason":"Belge temsilcisi başvuru şirketinin sicilinde bulunmuyor.","evidence":{}},
+    {"id":"document_validity","status":"green","title":"Belge geçerliliği","reason":"Belge geçerlilik süresi içinde.","evidence":{}}
+  ]
+}

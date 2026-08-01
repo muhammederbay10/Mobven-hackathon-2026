@@ -158,10 +158,19 @@ def test_demo_mutations_are_refused_when_demo_mode_is_off(
         for method, path in (
             ("post", "/api/demo/load-case/1"),
             ("post", "/api/demo/reset"),
+            ("post", "/api/demo/cache/prewarm"),
+            ("post", "/api/demo/cache/clear"),
         ):
             response = getattr(guarded, method)(path)
             assert response.status_code == 403, path
             assert response.json()["error"]["code"] == "DEMO_MODE_DISABLED"
+
+        registry_mutation = guarded.put(
+            "/api/registry/0123456789000017/reps/rep_abc_ali",
+            json={"status": "REMOVED"},
+        )
+        assert registry_mutation.status_code == 403
+        assert registry_mutation.json()["error"]["code"] == "DEMO_MODE_DISABLED"
 
         # Health and readiness stay available — the guard is on mutations only.
         assert guarded.get("/health").status_code == 200

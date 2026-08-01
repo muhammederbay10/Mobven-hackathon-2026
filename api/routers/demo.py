@@ -16,6 +16,7 @@ from api.config import Settings, get_settings
 from api.db import get_session
 from api.errors import demo_mode_disabled
 from api.services import demo_service
+from api.services.ai_client import ExtractionCache
 
 router = APIRouter(prefix="/api/demo", tags=["demo"])
 
@@ -72,3 +73,18 @@ def reset(
 ) -> dict[str, Any]:
     """Restore database rows, runtime registry and demo uploads to baseline."""
     return demo_service.reset_demo(settings, correlation_id=request.state.correlation_id)
+
+
+@router.post("/cache/prewarm")
+async def prewarm_cache(
+    settings: Annotated[Settings, Depends(require_demo_mode)],
+) -> dict[str, Any]:
+    return await demo_service.prewarm_extraction_cache(settings)
+
+
+@router.post("/cache/clear")
+def clear_cache(
+    settings: Annotated[Settings, Depends(require_demo_mode)],
+    document_sha256: str | None = None,
+) -> dict[str, int]:
+    return {"removed": ExtractionCache(settings).clear(document_sha256)}

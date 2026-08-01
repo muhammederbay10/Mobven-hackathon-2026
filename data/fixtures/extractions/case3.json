@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "document_id": "case3",
+  "company": {
+    "name": "Zeta İnşaat A.Ş.",
+    "taxNumber": "9876543210",
+    "mersisNumber": "0987654321000023",
+    "legalNameNormalized": "zeta inşaat anonim şirketi"
+  },
+  "notary": {"name": "Ankara 5. Noterliği", "date": "2025-09-04", "yevmiye": "2025/4410"},
+  "validUntil": "2028-09-04",
+  "representatives": [
+    {"id": "rep-1", "name": "Kemal Öz", "nameNormalized": "kemal öz", "nationalId": "555******22", "title": "Yönetim Kurulu Üyesi", "mode": "JOINT", "coSigners": [], "limits": null}
+  ],
+  "fieldsNeedingReview": [],
+  "evidence": {"authorityClause": "Kemal Öz şirketi müşterek imza ile temsil eder.", "page": 1},
+  "rules": [
+    {"scope": "general", "threshold": null, "mode": "JOINT", "coSigners": ["rep-1"], "blocked": false, "evidence": {"page": 1, "quote": "müşterek imza ile"}},
+    {"scope": "real_estate", "threshold": null, "mode": null, "coSigners": [], "blocked": true, "evidence": {"page": 1, "quote": "taşınmaz yetkisi verilmemiştir"}}
+  ]
+}

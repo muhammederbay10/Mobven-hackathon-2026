@@ -28,6 +28,7 @@ Status: `/analyze` transport and the flat-contract adapter are implemented.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -56,7 +57,10 @@ __all__ = [
     "CacheMode",
     "AIServiceClient",
     "LiveAIServiceClient",
+    "StubAIServiceClient",
+    "ReplayAIServiceClient",
     "ExtractionCache",
+    "get_ai_service",
     "build_analyze_request",
     "cache_key",
     "ai_contract_error",
@@ -238,6 +242,7 @@ class LiveAIServiceClient:
     ) -> None:
         self._settings = settings or get_settings()
         self._transport = transport
+        self.engine = "live-ai"
 
     async def _request(self, method: str, path: str, **kwargs: object) -> httpx.Response:
         try:
@@ -257,7 +262,8 @@ class LiveAIServiceClient:
             response = await self._request("GET", "/health")
             if response.status_code != 200:
                 return False
-            AIHealthResponse.model_validate(response.json())
+            health = AIHealthResponse.model_validate(response.json())
+            self.engine = health.engine
             return True
         except (ApiError, ValueError, ValidationError):
             return False
@@ -286,6 +292,109 @@ class LiveAIServiceClient:
             json=request.model_dump(mode="json", by_alias=True),
         )
         return _validated_response(response, CheckReport)
+
+
+class StubAIServiceClient:
+    """Offline contract fixture adapter used in development and rehearsals.
+
+    Selection is declared in ``data/fixtures/reports/catalog.json``.  The
+    adapter only evaluates generic fixture predicates; it contains no case
+    numbers and does not reproduce the AI service's comparison rules.
+    """
+
+    engine = "fixture-v1"
+
+    def __init__(self, settings: Settings | None = None) -> None:
+        self._settings = settings or get_settings()
+
+    async def health(self) -> bool:
+        return True
+
+    async def extract(
+        self, *, file_bytes: bytes, filename: str, document_id: int
+    ) -> ExtractionResult:
+        del file_bytes, document_id
+        stem = Path(filename).stem.lower()
+        path = self._settings.fixtures_path / "extractions" / f"{stem}.json"
+        if not path.is_file():
+            raise ai_contract_error(f"offline extraction fixture not found for {stem}")
+        return _load_model(path, ExtractionResult)
+
+    async def analyze(self, request: AnalyzeRequest) -> CheckReport:
+        directory = self._settings.fixtures_path / "reports"
+        catalog_path = directory / "catalog.json"
+        try:
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ai_contract_error("offline report catalog is unavailable") from exc
+
+        payload = request.model_dump(mode="json", by_alias=True)
+        for entry in catalog.get("entries", []):
+            conditions = entry.get("conditions", [])
+            if all(_fixture_condition(payload, item) for item in conditions):
+                report_path = directory / str(entry.get("report", ""))
+                return _load_model(report_path, CheckReport)
+        raise ai_contract_error("no offline report fixture matches this request")
+
+
+class ReplayAIServiceClient(StubAIServiceClient):
+    """Serve a previously validated extraction and fixture-backed report."""
+
+    engine = "replay"
+
+    async def extract(
+        self, *, file_bytes: bytes, filename: str, document_id: int
+    ) -> ExtractionResult:
+        del filename, document_id
+        digest = hashlib.sha256(file_bytes).hexdigest()
+        directory = self._settings.cache_path
+        candidates = sorted(directory.glob(f"{digest}__{_slug(SCHEMA_VERSION)}__*.json"))
+        for path in candidates:
+            try:
+                return ExtractionResult.model_validate(
+                    json.loads(path.read_text(encoding="utf-8"))
+                )
+            except (OSError, json.JSONDecodeError, ValidationError):
+                continue
+        raise ai_unavailable_error()
+
+
+def get_ai_service(settings: Settings | None = None) -> AIServiceClient:
+    settings = settings or get_settings()
+    if settings.ai_mode is AIMode.LIVE:
+        return LiveAIServiceClient(settings)
+    if settings.ai_mode is AIMode.REPLAY:
+        return ReplayAIServiceClient(settings)
+    return StubAIServiceClient(settings)
+
+
+def _load_model(path: Path, model: type[ExtractionResult] | type[CheckReport]):
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        return model.model_validate(raw)
+    except (OSError, json.JSONDecodeError, ValidationError) as exc:
+        raise ai_contract_error(f"offline fixture failed validation: {path.name}") from exc
+
+
+def _fixture_condition(payload: object, condition: object) -> bool:
+    """Small declarative predicate evaluator for the offline report catalog."""
+    if not isinstance(condition, dict) or not isinstance(condition.get("path"), str):
+        return False
+    current: object = payload
+    for part in condition["path"].split("."):
+        if not isinstance(current, dict) or part not in current:
+            return False
+        current = current[part]
+    if "equals" in condition:
+        return current == condition["equals"]
+    contains = condition.get("contains")
+    if isinstance(current, list) and isinstance(contains, dict):
+        return any(
+            isinstance(item, dict)
+            and all(item.get(key) == value for key, value in contains.items())
+            for item in current
+        )
+    return False
 
 
 def _validated_response(response: httpx.Response, model: type[ExtractionResult] | type[CheckReport]):

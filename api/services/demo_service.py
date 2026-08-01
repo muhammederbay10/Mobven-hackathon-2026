@@ -15,6 +15,7 @@ No engine reads it, and nothing here branches on it.
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,7 @@ from api.schemas import (
     RegistryRepresentativeStatus,
 )
 from api.services import application_service, audit_service, registry_service
+from api.services import ai_client
 
 
 class RegistryPatch(BaseModel):
@@ -219,6 +221,23 @@ def clear_runtime_directory(directory: Path, settings: Settings | None = None) -
             safe.unlink()
             removed += 1
     return removed
+
+
+async def prewarm_extraction_cache(settings: Settings | None = None) -> dict[str, Any]:
+    """Validate committed demo documents and seed the backend-owned cache."""
+    settings = settings or get_settings()
+    client = ai_client.StubAIServiceClient(settings)
+    cache = ai_client.ExtractionCache(settings)
+    warmed: list[dict[str, str]] = []
+    for path in sorted(settings.documents_path.glob("case[1-3].pdf")):
+        payload = path.read_bytes()
+        extraction = await client.extract(
+            file_bytes=payload, filename=path.name, document_id=0
+        )
+        digest = hashlib.sha256(payload).hexdigest()
+        cache.put(extraction, document_sha256=digest, engine=client.engine)
+        warmed.append({"document": path.name, "document_sha256": digest})
+    return {"warmed": warmed, "count": len(warmed)}
 
 
 def _remove_tree(directory: Path) -> int:

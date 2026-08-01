@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "entries": [
+    {
+      "conditions": [
+        {"path": "extraction.document_id", "equals": "case1"},
+        {"path": "registry.0123456789000017.reps", "contains": {"tckn": "123******01", "status": "REMOVED"}}
+      ],
+      "report": "case4.json"
+    },
+    {"conditions": [{"path": "extraction.document_id", "equals": "case1"}], "report": "case1.json"},
+    {"conditions": [{"path": "extraction.document_id", "equals": "case2"}], "report": "case2.json"},
+    {"conditions": [{"path": "extraction.document_id", "equals": "case3"}], "report": "case3.json"}
+  ]
+}

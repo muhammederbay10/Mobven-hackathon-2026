@@ -25,7 +25,7 @@ from sqlalchemy import text
 from api.config import AIMode, ConfigurationError, Settings, get_settings
 from api.db import get_engine, init_db
 from api.errors import ApiError
-from api.routers import applications, demo, documents
+from api.routers import applications, audit, authority, demo, documents, registry, transactions
 from api.schemas import ErrorCode
 from api.services import ai_client, registry_service
 from api.services.audit_service import new_correlation_id, redact
@@ -71,6 +71,10 @@ def create_app() -> FastAPI:
     app.include_router(demo.router)
     app.include_router(applications.router)
     app.include_router(documents.router)
+    app.include_router(registry.router)
+    app.include_router(authority.router)
+    app.include_router(audit.router)
+    app.include_router(transactions.router)
     return app
 
 
