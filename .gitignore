@@ -42,9 +42,17 @@ extraction-spike
 
 # ── Codex ───────────────────────────────────────
 AGENTS.md
+CLAUDE.md
 PROJECT_STATE.md
 
+# ── Deliverables the patterns above would swallow ───────────
+# "Data" (core.ignorecase=true on Windows) hides data/; "tests" hides ai/tests/.
+# Both are handed to the other tracks: BE's stub mode reads ai/tests/fixtures/case{n}.json
+# and FE renders data/documents/. Directory-only negations — __pycache__ stays ignored.
+!ai/tests/
+!data/
 
 # ── Misc ────────────────────────────────────────────────────
 *.log
 
+docs
