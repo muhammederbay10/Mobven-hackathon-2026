@@ -419,9 +419,12 @@ def _format_date(value: Date | None) -> str | None:
     return value.strftime("%d.%m.%Y") if value else None
 
 
-def _format_amount(value: float) -> str:
-    integer, _, fraction = f"{value:,.2f}".partition(".")
-    return f"{integer.replace(',', '.')},{fraction} TL"
+def _format_amount(value_kurus: int) -> str:
+    """Formats integer kuruş (1 TL = 100 kuruş) as a Turkish-style TL amount."""
+
+    tl, kurus_remainder = divmod(value_kurus, 100)
+    integer = f"{tl:,}".replace(",", ".")
+    return f"{integer},{kurus_remainder:02d} TL"
 
 
 # Order is the frozen CheckId order; CheckReport rejects any other sequence.
