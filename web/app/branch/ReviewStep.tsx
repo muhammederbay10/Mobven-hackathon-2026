@@ -31,6 +31,7 @@ import type {
   ExtractionResult,
 } from "@/lib/types";
 
+import { ChevronDownIcon, PencilIcon } from "@/components/Icon";
 import { Card, SectionLabel } from "@/components/Layout";
 import { SimBadge, StatusIcon, VerdictBanner } from "@/components/Status";
 import { Button, Field, Input } from "@/components/UI";
@@ -49,7 +50,6 @@ const SIMULATED_CHECK_IDS = new Set(["registry_status", "registry_representative
 
 type EvidenceSelection = {
   page: number;
-  quote: string | null;
   /** monotonically increasing, so re-selecting the same page re-flashes */
   key: number;
 };
@@ -64,6 +64,16 @@ export function ReviewStep({
   const { application, document, extraction, report, corrections, authority } = aggregate;
   const approved = application.status === "APPROVED";
   const [selection, setSelection] = useState<EvidenceSelection | null>(null);
+  // Which correction target the editor is aimed at. Lifted here so the inline
+  // pencil buttons on the extracted fields can aim it — the editor itself and
+  // the request it sends are unchanged.
+  const [targetKey, setTargetKey] = useState<string | null>(null);
+  const correctionsRef = useRef<HTMLDivElement>(null);
+
+  const editField = (key: string) => {
+    setTargetKey(key);
+    correctionsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   if (document === null || extraction === null || report === null) {
     // ANALYZED without its artifacts is a server-side inconsistency; render it
@@ -76,9 +86,9 @@ export function ReviewStep({
     );
   }
 
-  const showEvidence = (page: number, quote: string | null = null) => {
+  const selectPage = (page: number) => {
     const clamped = Math.min(Math.max(1, page), document.page_count);
-    setSelection((current) => ({ page: clamped, quote, key: (current?.key ?? 0) + 1 }));
+    setSelection((current) => ({ page: clamped, key: (current?.key ?? 0) + 1 }));
   };
 
   return (
@@ -94,21 +104,29 @@ export function ReviewStep({
       />
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
-        <DocumentViewer document={document} selection={selection} onSelectPage={showEvidence} />
+        <DocumentViewer document={document} selection={selection} onSelectPage={selectPage} />
 
         <div className="flex flex-col gap-4">
-          <ExtractionPanel extraction={extraction} onShowEvidence={showEvidence} />
-          <ChecksPanel checks={report.checks} onShowEvidence={showEvidence} />
+          <ExtractionPanel
+            extraction={extraction}
+            onEditField={approved ? null : editField}
+            activeTargetKey={targetKey}
+          />
+          <ChecksPanel checks={report.checks} />
         </div>
       </div>
 
-      <CorrectionsPanel
-        applicationId={application.id}
-        extraction={extraction}
-        corrections={corrections}
-        onAggregate={onAggregate}
-        readOnly={approved}
-      />
+      <div ref={correctionsRef}>
+        <CorrectionsPanel
+          applicationId={application.id}
+          extraction={extraction}
+          corrections={corrections}
+          onAggregate={onAggregate}
+          readOnly={approved}
+          targetKey={targetKey}
+          onTargetKeyChange={setTargetKey}
+        />
+      </div>
 
       {!approved ? (
         <DecisionControls
@@ -214,26 +232,49 @@ function ValueOrUnread({ value }: { value: string | null }) {
 
 function ExtractionPanel({
   extraction,
-  onShowEvidence,
+  onEditField,
+  activeTargetKey,
 }: {
   extraction: ExtractionResult;
-  onShowEvidence: (page: number, quote?: string | null) => void;
+  /** `null` once the application is approved — corrections are closed then. */
+  onEditField: ((targetKey: string) => void) | null;
+  activeTargetKey: string | null;
 }) {
   return (
     <Card>
       <SectionLabel>Belgeden okunan bilgiler</SectionLabel>
 
       <dl className="grid grid-cols-1 gap-x-5 gap-y-2 text-[12.5px] sm:grid-cols-2">
-        <ExtractionRow label="Şirket unvanı">
+        <ExtractionRow
+          label="Şirket unvanı"
+          targetKey="company.name"
+          onEditField={onEditField}
+          activeTargetKey={activeTargetKey}
+        >
           <ValueOrUnread value={extraction.company.name} />
         </ExtractionRow>
-        <ExtractionRow label="Vergi numarası">
+        <ExtractionRow
+          label="Vergi numarası"
+          targetKey="company.taxNumber"
+          onEditField={onEditField}
+          activeTargetKey={activeTargetKey}
+        >
           <ValueOrUnread value={extraction.company.taxNumber} />
         </ExtractionRow>
-        <ExtractionRow label="MERSİS">
+        <ExtractionRow
+          label="MERSİS"
+          targetKey="company.mersisNumber"
+          onEditField={onEditField}
+          activeTargetKey={activeTargetKey}
+        >
           <ValueOrUnread value={extraction.company.mersisNumber} />
         </ExtractionRow>
-        <ExtractionRow label="Belge geçerliliği">
+        <ExtractionRow
+          label="Belge geçerliliği"
+          targetKey="validUntil"
+          onEditField={onEditField}
+          activeTargetKey={activeTargetKey}
+        >
           {extraction.validUntil === null ? (
             <ValueOrUnread value={null} />
           ) : (
@@ -259,66 +300,174 @@ function ExtractionPanel({
         <blockquote className="font-paper text-[12px] italic leading-5 text-ink">
           “{extraction.evidence.authorityClause}”
         </blockquote>
-        <button
-          type="button"
-          onClick={() => onShowEvidence(extraction.evidence.page, extraction.evidence.authorityClause)}
-          className="mt-1.5 text-[12px] font-medium text-info underline-offset-2 hover:underline"
-        >
-          Belgede göster (sayfa {extraction.evidence.page})
-        </button>
       </div>
 
       <div className="mt-3">
-        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
-          Temsilciler
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
+            Temsilciler
+          </span>
+          <span className="text-[11px] text-ink-muted">
+            {extraction.representatives.length} kişi
+          </span>
         </div>
-        <ul className="flex flex-col gap-2">
+        {/* Accordion: one compact summary row per representative, details on
+            demand — the review column stays short instead of scrolling. */}
+        <ul className="flex flex-col gap-1.5">
           {extraction.representatives.map((rep) => (
-            <li key={rep.id} className="rounded-card border border-border px-3 py-2 text-[12.5px]">
-              <div className="flex flex-wrap items-baseline gap-x-2">
-                <b className="font-semibold text-ink">{rep.name}</b>
-                <span className="text-[11px] text-ink-muted">({rep.id})</span>
-                {rep.title ? <span className="text-ink-secondary">{rep.title}</span> : null}
-              </div>
-              <div className="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px] text-ink-secondary">
-                <span>İmza: {AUTHORITY_MODE_LABEL[rep.mode]}</span>
-                <span>TCKN: {rep.nationalId ?? "—"}</span>
-                <span>Limit: {rep.limits === null ? "sınırsız" : formatAmountMinor(rep.limits)}</span>
-                {rep.coSigners.length > 0 ? (
-                  <span>Birlikte imza: {rep.coSigners.join(", ")}</span>
-                ) : null}
-              </div>
-            </li>
+            <RepresentativeAccordionItem
+              key={rep.id}
+              representative={rep}
+              onEditField={onEditField}
+              activeTargetKey={activeTargetKey}
+            />
           ))}
         </ul>
       </div>
-
-      {extraction.fieldsNeedingReview.length > 0 ? (
-        <div
-          className="mt-3 rounded-card border border-warning/25 bg-warning-soft px-3 py-2.5 text-[12.5px] text-warning"
-          role="alert"
-        >
-          <b className="font-semibold">
-            <span aria-hidden>! </span>İncelenmesi gereken alanlar:
-          </b>
-          <ul className="mt-1 list-disc pl-5 text-ink-secondary">
-            {extraction.fieldsNeedingReview.map((field) => (
-              <li key={field} className="font-mono text-[11.5px]">
-                {field}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
     </Card>
   );
 }
 
-function ExtractionRow({ label, children }: { label: string; children: React.ReactNode }) {
+function ExtractionRow({
+  label,
+  children,
+  targetKey,
+  onEditField,
+  activeTargetKey,
+}: {
+  label: string;
+  children: React.ReactNode;
+  /** Omitted for fields the backend allowlist cannot correct (e.g. notary). */
+  targetKey?: string;
+  onEditField?: ((targetKey: string) => void) | null;
+  activeTargetKey?: string | null;
+}) {
+  const editable = targetKey !== undefined && onEditField != null;
+  const isActive = editable && activeTargetKey === targetKey;
   return (
-    <div className="min-w-0 border-b border-border/60 pb-1.5">
+    <div
+      className={`group min-w-0 border-b pb-1.5 ${
+        isActive ? "border-info" : "border-border/60"
+      }`}
+    >
       <dt className="text-[11px] text-ink-muted">{label}</dt>
-      <dd className="truncate">{children}</dd>
+      <dd className="flex min-w-0 items-center gap-1">
+        <span className="min-w-0 flex-1 truncate">{children}</span>
+        {editable ? (
+          <button
+            type="button"
+            onClick={() => onEditField(targetKey)}
+            aria-label={`${label} alanını düzelt`}
+            title={`${label} alanını düzelt`}
+            className={`grid size-6 flex-none place-items-center rounded-control text-ink-muted transition-opacity hover:bg-surface-hover hover:text-ink focus-visible:opacity-100 ${
+              isActive ? "text-info opacity-100" : "opacity-0 group-hover:opacity-100"
+            }`}
+          >
+            <PencilIcon width={13} height={13} />
+          </button>
+        ) : null}
+      </dd>
+    </div>
+  );
+}
+
+function RepresentativeAccordionItem({
+  representative: rep,
+  onEditField,
+  activeTargetKey,
+}: {
+  representative: ExtractionResult["representatives"][number];
+  onEditField: ((targetKey: string) => void) | null;
+  activeTargetKey: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const nameKey = `representatives[${rep.id}].name`;
+  const modeKey = `representatives[${rep.id}].mode`;
+  const targeted = activeTargetKey === nameKey || activeTargetKey === modeKey;
+
+  return (
+    <li
+      className={`overflow-hidden rounded-card border ${
+        targeted ? "border-info" : "border-border"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-surface-hover"
+      >
+        <ChevronDownIcon
+          width={14}
+          height={14}
+          className={`flex-none text-ink-muted transition-transform duration-150 ${
+            open ? "" : "-rotate-90"
+          }`}
+        />
+        <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-ink">
+          {rep.name}
+        </span>
+        <span className="flex-none rounded-pill bg-surface-subtle px-2 py-0.5 text-[11px] text-ink-secondary">
+          {AUTHORITY_MODE_LABEL[rep.mode]}
+        </span>
+      </button>
+
+      {open ? (
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-border px-3 py-2.5 text-[12px]">
+          <RepDetail label="Belge kimliği" value={rep.id} mono />
+          <RepDetail label="Görev" value={rep.title ?? "—"} />
+          <RepDetail label="TCKN" value={rep.nationalId ?? "—"} mono />
+          <RepDetail
+            label="Limit"
+            value={rep.limits === null ? "sınırsız" : formatAmountMinor(rep.limits)}
+          />
+          {rep.coSigners.length > 0 ? (
+            <RepDetail label="Birlikte imza" value={rep.coSigners.join(", ")} wide />
+          ) : null}
+
+          {onEditField ? (
+            <div className="col-span-2 flex flex-wrap gap-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => onEditField(nameKey)}
+                className="inline-flex h-7 items-center gap-1.5 rounded-control border border-border-strong bg-surface px-2.5 text-[11.5px] font-medium text-ink hover:bg-surface-hover"
+              >
+                <PencilIcon width={12} height={12} />
+                Adı düzelt
+              </button>
+              <button
+                type="button"
+                onClick={() => onEditField(modeKey)}
+                className="inline-flex h-7 items-center gap-1.5 rounded-control border border-border-strong bg-surface px-2.5 text-[11.5px] font-medium text-ink hover:bg-surface-hover"
+              >
+                <PencilIcon width={12} height={12} />
+                İmza şeklini düzelt
+              </button>
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
+    </li>
+  );
+}
+
+function RepDetail({
+  label,
+  value,
+  mono = false,
+  wide = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  wide?: boolean;
+}) {
+  return (
+    <div className={`min-w-0 ${wide ? "col-span-2" : ""}`}>
+      <dt className="text-[11px] text-ink-muted">{label}</dt>
+      <dd className={`truncate text-ink ${mono ? "font-mono text-[11.5px]" : ""}`} title={value}>
+        {value}
+      </dd>
     </div>
   );
 }
@@ -327,13 +476,7 @@ function ExtractionRow({ label, children }: { label: string; children: React.Rea
 /* The nine checks — backend order, verbatim content                          */
 /* -------------------------------------------------------------------------- */
 
-function ChecksPanel({
-  checks,
-  onShowEvidence,
-}: {
-  checks: CheckResult[];
-  onShowEvidence: (page: number, quote?: string | null) => void;
-}) {
+function ChecksPanel({ checks }: { checks: CheckResult[] }) {
   return (
     <Card>
       <SectionLabel>Dokuz kontrol</SectionLabel>
@@ -353,7 +496,7 @@ function ChecksPanel({
                 {SIMULATED_CHECK_IDS.has(check.id) ? <SimBadge label="simüle sicil" /> : null}
               </div>
               <p className="mt-0.5 text-[12.5px] leading-5 text-ink-secondary">{check.reason}</p>
-              <CheckEvidence check={check} onShowEvidence={onShowEvidence} />
+              <CheckEvidence check={check} />
             </div>
           </li>
         ))}
@@ -364,23 +507,14 @@ function ChecksPanel({
 
 /**
  * Check evidence is a flexible dictionary (guide section 10): render known
- * safe scalars, link a valid page reference, and never assume a bounding box.
+ * safe scalars and never assume a bounding box.
  */
-function CheckEvidence({
-  check,
-  onShowEvidence,
-}: {
-  check: CheckResult;
-  onShowEvidence: (page: number, quote?: string | null) => void;
-}) {
+function CheckEvidence({ check }: { check: CheckResult }) {
   const entries = Object.entries(check.evidence).filter(
     ([, value]) => value !== null && value !== "",
   );
   if (entries.length === 0) return null;
 
-  const pageEntry = entries.find(
-    ([key, value]) => key === "page" && typeof value === "number" && Number.isInteger(value) && value >= 1,
-  );
   const quoteEntry = entries.find(([key]) => key === "quote");
 
   return (
@@ -395,17 +529,6 @@ function CheckEvidence({
       {quoteEntry ? (
         <span className="max-w-full truncate italic text-ink-secondary">“{String(quoteEntry[1])}”</span>
       ) : null}
-      {pageEntry ? (
-        <button
-          type="button"
-          onClick={() =>
-            onShowEvidence(pageEntry[1] as number, quoteEntry ? String(quoteEntry[1]) : null)
-          }
-          className="font-medium text-info underline-offset-2 hover:underline"
-        >
-          Belgede göster (sayfa {String(pageEntry[1])})
-        </button>
-      ) : null}
     </div>
   );
 }
@@ -413,6 +536,13 @@ function CheckEvidence({
 /* -------------------------------------------------------------------------- */
 /* Corrections — append-only history + guarded form                           */
 /* -------------------------------------------------------------------------- */
+
+/** One-tap reasons for the most common review corrections. */
+const QUICK_REASONS = [
+  "Noter belgesiyle tekrar kontrol edildi.",
+  "Belgede okunaklı biçimde farklı yazıyor.",
+  "Sistem yanlış okumuş.",
+];
 
 type TargetOption = { key: string; label: string; target: CorrectionTarget };
 
@@ -452,19 +582,40 @@ function CorrectionsPanel({
   corrections,
   onAggregate,
   readOnly,
+  targetKey,
+  onTargetKeyChange,
 }: {
   applicationId: number;
   extraction: ExtractionResult;
   corrections: ApplicationAggregate["corrections"];
   onAggregate: (aggregate: ApplicationAggregate) => void;
   readOnly: boolean;
+  targetKey: string | null;
+  onTargetKeyChange: (targetKey: string | null) => void;
 }) {
+  const options = targetOptions(extraction);
+
   return (
     <Card>
-      <SectionLabel>Düzeltme geçmişi</SectionLabel>
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+        <SectionLabel>Düzeltmeler</SectionLabel>
+        {!readOnly && targetKey === null ? (
+          <Button
+            type="button"
+            className="!h-7 !px-2.5 !text-[12px]"
+            onClick={() => onTargetKeyChange(options[0]?.key ?? "company.name")}
+          >
+            <PencilIcon width={12} height={12} />
+            Düzeltme ekle
+          </Button>
+        ) : null}
+      </div>
 
       {corrections.length === 0 ? (
-        <p className="text-[12.5px] text-ink-muted">Bu başvuruda düzeltme yapılmadı.</p>
+        <p className="text-[12.5px] text-ink-muted">
+          Bu başvuruda düzeltme yapılmadı.
+          {!readOnly ? " Bir alanı düzeltmek için üstteki kalem simgesini kullanın." : ""}
+        </p>
       ) : (
         <ul className="flex flex-col gap-1.5">
           {corrections.map((correction) => (
@@ -472,11 +623,15 @@ function CorrectionsPanel({
               key={correction.id}
               className="rounded-card border border-border px-3 py-2 text-[12.5px]"
             >
-              <div className="flex flex-wrap items-baseline gap-x-2">
-                <code className="font-mono text-[11.5px] text-ink">{correction.field_path}</code>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <code className="rounded-[5px] bg-surface-subtle px-1.5 py-px font-mono text-[11px] text-ink-secondary">
+                  {correction.field_path}
+                </code>
                 <span className="text-ink-secondary">
-                  <s>{formatCorrectionValue(correction.old_value_json.value)}</s>
-                  {" → "}
+                  <s className="text-ink-muted">
+                    {formatCorrectionValue(correction.old_value_json.value)}
+                  </s>
+                  <span aria-hidden> → </span>
                   <b className="font-semibold text-ink">
                     {formatCorrectionValue(correction.new_value_json.value)}
                   </b>
@@ -490,11 +645,13 @@ function CorrectionsPanel({
         </ul>
       )}
 
-      {!readOnly ? (
+      {!readOnly && targetKey !== null ? (
         <CorrectionForm
           applicationId={applicationId}
           extraction={extraction}
           onAggregate={onAggregate}
+          targetKey={targetKey}
+          onTargetKeyChange={onTargetKeyChange}
         />
       ) : null}
     </Card>
@@ -510,13 +667,16 @@ function CorrectionForm({
   applicationId,
   extraction,
   onAggregate,
+  targetKey,
+  onTargetKeyChange,
 }: {
   applicationId: number;
   extraction: ExtractionResult;
   onAggregate: (aggregate: ApplicationAggregate) => void;
+  targetKey: string;
+  onTargetKeyChange: (targetKey: string | null) => void;
 }) {
   const options = targetOptions(extraction);
-  const [targetKey, setTargetKey] = useState(options[0]?.key ?? "company.name");
   const [newValue, setNewValue] = useState("");
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
@@ -576,34 +736,67 @@ function CorrectionForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 border-t border-border pt-3.5" noValidate>
-      <div className="mb-2 text-[12.5px] font-semibold text-ink">Düzeltme ekle</div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <Field htmlFor="correction-target" label="Alan">
-          <select
-            id="correction-target"
-            value={targetKey}
-            onChange={(event) => {
-              setTargetKey(event.target.value);
-              setNewValue("");
-              setStale(false);
-              setError(null);
-            }}
-            className="h-9 w-full rounded-control border border-border-strong bg-surface px-3 text-[13px] text-ink"
-          >
-            {options.map((option) => (
-              <option key={option.key} value={option.key}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <Field
-          htmlFor="correction-new-value"
-          label="Yeni değer"
-          hint={`Ekranda görünen değer: ${formatCorrectionValue(currentValue)}`}
+    <form
+      onSubmit={handleSubmit}
+      className="mt-4 rounded-card border border-info/30 bg-info-soft/40 p-3.5"
+      noValidate
+    >
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink">
+          <PencilIcon width={13} height={13} />
+          Alanı düzelt
+        </span>
+        <button
+          type="button"
+          onClick={() => onTargetKeyChange(null)}
+          className="text-[11.5px] font-medium text-ink-secondary underline-offset-2 hover:text-ink hover:underline"
         >
+          Vazgeç
+        </button>
+      </div>
+
+      <Field htmlFor="correction-target" label="Düzeltilecek alan">
+        <select
+          id="correction-target"
+          value={targetKey}
+          onChange={(event) => {
+            onTargetKeyChange(event.target.value);
+            setNewValue("");
+            setStale(false);
+            setError(null);
+          }}
+          className="h-9 w-full rounded-control border border-border-strong bg-surface px-3 text-[13px] text-ink"
+        >
+          {options.map((option) => (
+            <option key={option.key} value={option.key}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      {/* Before → after, so the reviewer always sees what they are replacing. */}
+      <div className="mt-3 grid items-end gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <div className="min-w-0">
+          <span className="mb-1.5 block text-[11.5px] font-medium text-ink-secondary">
+            Belgeden okunan
+          </span>
+          <div className="flex h-9 items-center truncate rounded-control border border-border bg-surface-subtle px-3 text-[13px] text-ink-secondary">
+            {formatCorrectionValue(currentValue)}
+          </div>
+        </div>
+
+        <span className="hidden pb-2.5 text-ink-muted sm:block" aria-hidden>
+          →
+        </span>
+
+        <div className="min-w-0">
+          <label
+            htmlFor="correction-new-value"
+            className="mb-1.5 block text-[11.5px] font-medium text-ink-secondary"
+          >
+            Doğru değer
+          </label>
           {isMode ? (
             <select
               id="correction-new-value"
@@ -612,32 +805,43 @@ function CorrectionForm({
               className="h-9 w-full rounded-control border border-border-strong bg-surface px-3 text-[13px] text-ink"
             >
               <option value="">Seçin…</option>
-              <option value="SOLE">SOLE — münferit</option>
-              <option value="JOINT">JOINT — müşterek</option>
+              <option value="SOLE">Münferit (SOLE)</option>
+              <option value="JOINT">Müşterek (JOINT)</option>
             </select>
           ) : (
             <Input
               id="correction-new-value"
               type={isDate ? "date" : "text"}
               value={newValue}
+              autoFocus
+              placeholder="Belgedeki doğru değeri yazın"
               onChange={(event) => setNewValue(event.target.value)}
             />
           )}
-        </Field>
+        </div>
       </div>
 
       <div className="mt-3">
-        <Field
-          htmlFor="correction-reason"
-          label="Gerekçe"
-          hint="Örn. Noter belgesiyle tekrar kontrol edildi."
-        >
+        <Field htmlFor="correction-reason" label="Gerekçe">
           <Input
             id="correction-reason"
             value={reason}
+            placeholder="Bu düzeltmenin nedeni"
             onChange={(event) => setReason(event.target.value)}
           />
         </Field>
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {QUICK_REASONS.map((quickReason) => (
+            <button
+              key={quickReason}
+              type="button"
+              onClick={() => setReason(quickReason)}
+              className="rounded-pill border border-border-strong bg-surface px-2.5 py-0.5 text-[11px] text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink"
+            >
+              {quickReason}
+            </button>
+          ))}
+        </div>
       </div>
 
       {stale ? (
@@ -663,10 +867,13 @@ function CorrectionForm({
         </div>
       ) : null}
 
-      <div className="mt-3">
-        <Button type="submit" disabled={!canSubmit}>
-          {pending ? "Kaydediliyor…" : "Düzeltmeyi kaydet ve yeniden analiz et"}
+      <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
+        <Button type="submit" variant="primary" disabled={!canSubmit}>
+          {pending ? "Kaydediliyor…" : "Kaydet ve yeniden analiz et"}
         </Button>
+        <span className="text-[11px] text-ink-muted">
+          Düzeltme kaydedilir ve dokuz kontrol yeniden çalıştırılır.
+        </span>
       </div>
     </form>
   );

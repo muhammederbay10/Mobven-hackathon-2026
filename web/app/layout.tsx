@@ -41,7 +41,7 @@ const interLatinExt = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "YetkiCheck",
+  title: "starq.dev",
   description:
     "İmza sirkülerini bir kez şubede doğrula, sonraki her işlemde kayıtlı yetkiyi denetle.",
 };

@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     # Flip only after the endpoint has been delivered and contract-tested.
     ai_extract_available: bool = False
     extraction_cache: CacheMode = CacheMode.ON
-    ai_timeout_seconds: float = 20.0
+    ai_timeout_seconds: float = 5000.0
 
     data_dir: str = "../data"
     allowed_origins: str = "http://localhost:3000"

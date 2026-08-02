@@ -120,6 +120,36 @@ export function PanelLeftIcon(props: IconProps) {
   );
 }
 
+/** Accordion disclosure chevron. */
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5.5 9l6.5 6.5L18.5 9" />
+    </svg>
+  );
+}
+
+/** Inline "correct this field" affordance. */
+export function PencilIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4.5 19.5h4l10-10a2.12 2.12 0 0 0-3-3l-10 10v3Z" />
+      <path d="M14.5 6.5l3 3" />
+    </svg>
+  );
+}
+
+/** Upload dropzone glyph. */
+export function UploadIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 15.5V4.5" />
+      <path d="M7.5 8.5 12 4l4.5 4.5" />
+      <path d="M4.5 16v2.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V16" />
+    </svg>
+  );
+}
+
 /** Breadcrumb "Ana Sayfa" glyph. */
 export function HomeIcon(props: IconProps) {
   return (

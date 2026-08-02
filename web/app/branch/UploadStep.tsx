@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   ApiError,
@@ -12,6 +12,7 @@ import {
 import { formatFileSize } from "@/lib/format";
 import type { ApplicationAggregate, DocumentView } from "@/lib/types";
 
+import { CloseIcon, UploadIcon } from "@/components/Icon";
 import { Card } from "@/components/Layout";
 import { ErrorState } from "@/components/States";
 import { Button, Checkbox, Field, Input } from "@/components/UI";
@@ -93,6 +94,8 @@ function UploadForm({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Object URLs leak unless revoked when replaced or unmounted.
   useEffect(() => {
@@ -101,8 +104,8 @@ function UploadForm({
     };
   }, [localPreviewUrl]);
 
-  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const selected = event.target.files?.[0] ?? null;
+  /** Shared by the picker and the dropzone — same state either way. */
+  function applyFile(selected: File | null) {
     setFile(selected);
     setError(null);
     setLocalPreviewUrl((current) => {
@@ -113,6 +116,11 @@ function UploadForm({
         ? URL.createObjectURL(selected)
         : null;
     });
+  }
+
+  function clearFile() {
+    applyFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   const fileTypeInvalid = file !== null && !ACCEPTED_MIME.includes(file.type);
@@ -146,21 +154,69 @@ function UploadForm({
           PDF, PNG veya JPEG kabul edilir. Belgenin aslı görülmeden yükleme yapılamaz.
         </p>
 
-        <Field htmlFor="upload-file" label="İmza sirküleri dosyası">
+        {/* Dropzone: one large click/drop target instead of a bare file input.
+            The hidden input keeps native keyboard and screen-reader access. */}
+        <label
+          htmlFor="upload-file"
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragOver(false);
+            applyFile(event.dataTransfer.files?.[0] ?? null);
+          }}
+          className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-card border-2 border-dashed px-4 py-7 text-center transition-colors ${
+            dragOver
+              ? "border-info bg-info-soft"
+              : "border-border-strong bg-surface-subtle hover:border-info hover:bg-surface-hover"
+          }`}
+        >
+          <span
+            className="grid size-10 place-items-center rounded-full border border-border bg-surface text-ink-secondary"
+            aria-hidden
+          >
+            <UploadIcon width={18} height={18} />
+          </span>
+          <span className="text-[13px] font-medium text-ink">
+            Dosyayı buraya sürükleyin{" "}
+            <span className="text-info underline underline-offset-2">veya seçin</span>
+          </span>
+          <span className="text-[11.5px] text-ink-muted">PDF, PNG veya JPEG</span>
           <input
+            ref={fileInputRef}
             id="upload-file"
             type="file"
             accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
-            onChange={handleFileChange}
-            className="block w-full text-[13px] text-ink file:mr-3 file:h-9 file:cursor-pointer file:rounded-control file:border file:border-border-strong file:bg-surface file:px-3.5 file:text-[13px] file:font-medium file:text-ink hover:file:bg-surface-hover"
+            onChange={(event) => applyFile(event.target.files?.[0] ?? null)}
+            className="sr-only"
           />
-        </Field>
+        </label>
 
         {file ? (
-          <p className="mt-2 text-[12px] text-ink-secondary">
-            Seçilen dosya: <b className="font-medium text-ink">{file.name}</b> ·{" "}
-            {formatFileSize(file.size)}
-          </p>
+          <div className="mt-3 flex items-center gap-2.5 rounded-card border border-border bg-surface px-3 py-2">
+            <span
+              className="grid size-8 flex-none place-items-center rounded-control bg-surface-subtle font-mono text-[9.5px] font-semibold uppercase text-ink-secondary"
+              aria-hidden
+            >
+              {file.name.split(".").pop()?.slice(0, 4) ?? "dosya"}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[12.5px] font-medium text-ink">{file.name}</span>
+              <span className="block text-[11px] text-ink-muted">{formatFileSize(file.size)}</span>
+            </span>
+            <button
+              type="button"
+              onClick={clearFile}
+              aria-label="Dosyayı kaldır"
+              title="Dosyayı kaldır"
+              className="grid size-7 flex-none place-items-center rounded-control text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
+            >
+              <CloseIcon width={14} height={14} />
+            </button>
+          </div>
         ) : null}
         {fileTypeInvalid ? (
           <p className="mt-1.5 text-[12px] text-danger" role="alert">
@@ -186,14 +242,22 @@ function UploadForm({
           </Field>
         </div>
 
-        <label className="mt-4 flex items-start gap-2.5 text-[13px] text-ink">
+        {/* Same consent-card treatment as step 1's identity attestation: the
+            whole surface is the target and the checked state reads at a glance. */}
+        <label
+          className={`mt-4 flex cursor-pointer items-start gap-3 rounded-card border p-3.5 transition-colors ${
+            originalSeen
+              ? "border-success/40 bg-success-soft"
+              : "border-border-strong bg-surface hover:bg-surface-hover"
+          }`}
+        >
           <Checkbox
             checked={originalSeen}
             onChange={(event) => setOriginalSeen(event.target.checked)}
           />
-          <span>
-            Belgenin <b className="font-semibold">aslını</b> şubede gördüm.
-            <span className="block text-[11.5px] text-ink-muted">
+          <span className="text-[13px] leading-5 text-ink">
+            <b className="font-semibold">Belgenin aslını şubede gördüm.</b>
+            <span className="mt-0.5 block text-[11.5px] leading-4 text-ink-muted">
               Fotokopi veya ekran görüntüsüyle süreç ilerletilemez.
             </span>
           </span>

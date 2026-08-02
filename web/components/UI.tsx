@@ -19,24 +19,30 @@ import { ChevronRightIcon } from "./Icon";
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
-  // Dark neutral by default; the accent gradient is reserved for a single
-  // primary top-bar action per section 8, not every primary button.
-  primary: "border border-ink bg-ink text-white hover:opacity-90",
-  secondary: "border border-border-strong bg-surface text-ink hover:bg-surface-hover",
-  ghost: "border border-transparent text-ink-secondary hover:bg-surface-hover",
-  danger: "border border-danger bg-danger text-white hover:opacity-90",
+  primary:
+    "border border-transparent text-white shadow-panel hover:brightness-[0.97] hover:shadow-raised",
+  secondary:
+    "border border-border-strong bg-surface text-ink shadow-panel hover:border-cyan/50 hover:bg-cyan-soft",
+  ghost: "border border-transparent text-ink-secondary hover:bg-violet-soft hover:text-ink",
+  danger: "border border-danger bg-danger text-white shadow-panel hover:brightness-[0.97]",
 };
 
 export function Button({
   variant = "secondary",
   className = "",
+  style,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
   return (
     <button
       {...props}
+      style={
+        variant === "primary"
+          ? { background: "var(--yc-gradient-action)", ...style }
+          : style
+      }
       className={[
-        "inline-flex h-9 items-center justify-center gap-1.5 rounded-control px-3.5 text-[13.5px] font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40",
+        "inline-flex h-9 items-center justify-center gap-1.5 rounded-control px-4 text-[13.5px] font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/40 focus-visible:ring-offset-2 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:active:translate-y-0",
         BUTTON_VARIANT[variant],
         className,
       ].join(" ")}
@@ -152,7 +158,7 @@ export function Checkbox({
     <input
       type="checkbox"
       {...props}
-      className={["mt-0.5 size-4 flex-none rounded-[4px] border-border-strong text-ink", className].join(
+      className={["mt-0.5 size-4 flex-none rounded-sm border-border-strong text-ink", className].join(
         " ",
       )}
     />
