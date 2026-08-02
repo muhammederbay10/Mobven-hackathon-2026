@@ -77,11 +77,6 @@ export function formatInstant(isoInstant: string | null | undefined): string {
   return TIME_FORMAT.format(parsed);
 }
 
-/** Measured server-side latency. Never computed or embellished in the client. */
-export function formatLatency(latencyMs: number): string {
-  return `${latencyMs} ms`;
-}
-
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -180,6 +175,34 @@ export const AUTHORITY_MODE_LABEL: Record<AuthorityMode, string> = {
   LIMITED: "Sınırlı",
   UNKNOWN: "Belirsiz",
 };
+
+const AUDIT_ACTION_LABEL: Record<string, string> = {
+  APPLICATION_CREATED: "Başvuru oluşturuldu",
+  IDENTITY_ATTESTED: "Kimlik doğrulandı",
+  DOCUMENT_UPLOADED: "Belge yüklendi",
+  ANALYSIS_STARTED: "Belge incelemesi başladı",
+  ANALYSIS_COMPLETED: "Belge incelemesi tamamlandı",
+  ANALYSIS_FAILED: "Belge incelemesi tamamlanamadı",
+  EXTRACTION_CORRECTED: "Belge bilgisi düzeltildi",
+  APPLICATION_DECIDED: "Başvuru kararı kaydedildi",
+  APPROVAL_OVERRIDE: "İstisnai onay verildi",
+  AUTHORITY_CREATED: "Yetki kaydı oluşturuldu",
+  AUTHORITY_SUSPENDED: "Yetki kaydı askıya alındı",
+  REGISTRY_REPRESENTATIVE_UPDATED: "Temsilci sicil durumu güncellendi",
+  TRANSACTION_AUTHORIZED: "İşlem yetkisi kontrol edildi",
+  TRANSACTION_COSIGNED: "İkinci imza tamamlandı",
+};
+
+export function formatAuditAction(action: string): string {
+  return AUDIT_ACTION_LABEL[action] ?? "Kayıt güncellendi";
+}
+
+export function formatActor(actor: string): string {
+  if (actor.startsWith("branch_user:")) return "Şube görevlisi";
+  if (actor.startsWith("system")) return "Sistem";
+  if (actor.startsWith("mobile_user:")) return "Mobil kullanıcı";
+  return "Yetkili kullanıcı";
+}
 
 /**
  * Lowercase AI rule scopes -> Turkish display labels (guide section 13:

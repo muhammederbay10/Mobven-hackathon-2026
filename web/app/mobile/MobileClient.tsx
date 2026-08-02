@@ -16,7 +16,6 @@ import { lastMersis, rememberMersis } from "@/lib/clientState";
 import {
   formatAmountMinor,
   formatInstant,
-  formatLatency,
   parseAmountToMinor,
   TRANSACTION_SUBJECT_LABEL,
   TRANSACTION_VERDICT_LABEL,
@@ -33,15 +32,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { SimBadge, StatusBadge, StatusIcon } from "@/components/Status";
 import { Button, Field, Input } from "@/components/UI";
 
-/**
- * Act 2 — authority-gated transactions (guide section 14).
- *
- * Everything decision-shaped on this screen is a verbatim render of a
- * `TransactionDecision` the backend returned. Presets only prefill the
- * request; a pending co-signature is completed exclusively by
- * `POST /api/transactions/{id}/cosign`. The person switcher is built from
- * `authority.persons` — nothing hardcodes Ali or Ayşe.
- */
+/** Authority-controlled mobile transactions and co-signing. */
 
 type Loadable<T> =
   | { kind: "loading" }
@@ -50,7 +41,6 @@ type Loadable<T> =
 
 const loading = { kind: "loading" } as const;
 
-/** Session-only request context (guide: not persisted by the history API). */
 type RequestContext = {
   subject: TransactionSubject;
   amountMinor: number;
@@ -125,14 +115,13 @@ export function MobileClient() {
     }
   }, [authority, selectedPersonId]);
 
-  /** Refresh server-derived context after every authorize/co-sign (guide §14). */
   const refreshHistory = useCallback(async () => {
     if (mersis === null) return;
     try {
       setHistory({ kind: "ready", data: await listTransactions(mersis) });
       setRegistry({ kind: "ready", data: await getRegistry() });
     } catch {
-      /* history refresh is best-effort; the decision on screen already came from the server */
+      /* Keep the completed decision visible if history refresh fails. */
     }
   }, [mersis]);
 
@@ -144,9 +133,9 @@ export function MobileClient() {
             title="MERSİS numarası olmadan mobil şube açılamaz."
             hint={
               <>
-                Adres <code className="font-mono">/mobile?mersis=…</code> biçiminde olmalı.{" "}
+                İşlem yapmak istediğiniz şirketin yetki kaydını seçin.{" "}
                 <Link href="/" className="underline">
-                  Demo kontrol paneline dön
+                  Kontrol paneline dön
                 </Link>
               </>
             }
@@ -167,9 +156,6 @@ export function MobileClient() {
         `MERSİS ${mersis}`)
       : `MERSİS ${mersis}`;
 
-  // The restorable pending co-sign: the current decision if it is pending,
-  // otherwise the latest PENDING_COSIGN history item (guide section 14 —
-  // refresh restoration without inventing missing request details).
   const pendingDecision =
     decision?.verdict === "PENDING_COSIGN"
       ? decision
@@ -237,12 +223,12 @@ function MobileShell({ mersis, children }: { mersis: string | null; children: Re
         title={
           <>
             Mobil şube — sonraki işlemler
-            <SimBadge label="simüle edilmiş banka uygulaması" />
+            <SimBadge label="test ortamı" />
           </>
         }
         subtitle={
           mersis
-            ? `Belge bir daha istenmez. Her işlemde MERSİS ${mersis} yetki kaydı sunucuda yeniden doğrulanır.`
+            ? `Belge bir daha istenmez. Her işlemde MERSİS ${mersis} için güncel yetki ve sicil kayıtları doğrulanır.`
             : "Belge bir daha istenmez. Her işlemde kayıtlı yetki sorgulanır: kişi, limit, konu, süre ve sicil durumu."
         }
       />
@@ -504,7 +490,7 @@ function TransactionForm({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Decision + co-sign cards — verbatim backend output                         */
+/* Decision and co-sign cards                                                 */
 /* -------------------------------------------------------------------------- */
 
 function DecisionCard({
@@ -563,8 +549,7 @@ function DecisionCard({
             {decision.authorization_code}
           </div>
           <div className="mt-0.5 text-[10.5px] text-ink-muted">
-            {formatLatency(decision.latency_ms)} · yetki #{decision.source.authority_id} · belge #
-            {decision.source.document_id} · şubede aslı görüldü ({formatInstant(decision.source.verified_at)})
+            Şubede doğrulanan belge esas alındı · {formatInstant(decision.source.verified_at)}
           </div>
         </div>
       ) : null}
@@ -604,8 +589,6 @@ function CosignCard({
     setBusy(true);
     setError(null);
     try {
-      // The backend completes the co-signature; the response replaces the
-      // displayed decision. Never flips PENDING → ALLOWED in React state.
       const decision = await cosignTransaction(pendingDecision.transaction_id, {
         cosigner: cosignerId,
       });
@@ -703,9 +686,6 @@ function HistoryPanel({
                   bekleyen imza: {personName(authority.persons, item.required_cosigner)}
                 </span>
               ) : null}
-              <span className="ml-auto text-[11px] text-ink-muted">
-                {formatLatency(item.latency_ms)}
-              </span>
             </li>
           ))}
         </ul>

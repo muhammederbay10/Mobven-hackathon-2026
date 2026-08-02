@@ -36,6 +36,18 @@ def test_all_four_offline_outcomes_are_persistent(client: TestClient) -> None:
         assert restored["report"]["verdict"] == verdict
 
 
+def test_analysis_response_reports_extraction_cache_hits(client: TestClient) -> None:
+    first_application_id = _prepare(client, 1)
+    first = client.post(f"/api/applications/{first_application_id}/analyze")
+    assert first.status_code == 200
+    assert first.headers["X-Extraction-Cache"] == "miss"
+
+    second_application_id = _prepare(client, 1)
+    second = client.post(f"/api/applications/{second_application_id}/analyze")
+    assert second.status_code == 200
+    assert second.headers["X-Extraction-Cache"] == "hit"
+
+
 def test_corrections_approval_authorization_and_cosign(client: TestClient) -> None:
     application_id = _prepare(client, 1)
     assert client.post(f"/api/applications/{application_id}/analyze").status_code == 200

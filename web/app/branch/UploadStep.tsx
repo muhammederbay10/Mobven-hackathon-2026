@@ -4,13 +4,17 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   ApiError,
-  analyzeApplication,
+  analyzeApplicationForResultPage,
   documentPageUrl,
   getApplication,
   uploadDocument,
 } from "@/lib/api";
 import type { UploadProgress } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import {
+  cachedResultLoaderDurationMs,
+  remainingResultLoaderDelayMs,
+} from "@/lib/result-loader";
 import type { ApplicationAggregate, DocumentView } from "@/lib/types";
 
 import { CloseIcon, UploadIcon } from "@/components/Icon";
@@ -18,18 +22,7 @@ import { Card } from "@/components/Layout";
 import { ErrorState } from "@/components/States";
 import { Button, Checkbox, Field, Input } from "@/components/UI";
 
-/**
- * Step 2 — original document upload and analysis (guide section 10).
- *
- * Honesty rules baked in here:
- * - upload uses browser byte progress, then switches to a distinct server-side
- *   processing state after the request body has arrived;
- * - analysis shows elapsed time and the real pipeline, but no fabricated
- *   percentage because the backend does not stream stage completion;
- * - the local thumbnail (images only) is replaced by the server-rendered first
- *   page once `DocumentView` exists — server data is authoritative;
- * - a retryable AI failure preserves the document and offers `/analyze` again.
- */
+/** Step 2 — original document upload and analysis. */
 
 const ACCEPTED_MIME = ["application/pdf", "image/png", "image/jpeg"];
 
@@ -112,8 +105,7 @@ function UploadForm({
     setError(null);
     setLocalPreviewUrl((current) => {
       if (current) URL.revokeObjectURL(current);
-      // A local thumbnail is only safe for images; PDFs wait for the
-      // server-rendered page (guide section 10, step 2).
+      // Local previews are limited to image files.
       return selected && selected.type.startsWith("image/")
         ? URL.createObjectURL(selected)
         : null;
@@ -145,8 +137,7 @@ function UploadForm({
         undefined,
         setUploadProgress,
       );
-      // The upload returns a DocumentView; the application status moved on the
-      // server. Refetch the aggregate rather than patching state locally.
+      // Refresh the full application after upload.
       onAggregate(await getApplication(applicationId));
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
@@ -309,7 +300,7 @@ function UploadingCard({
               Belge alımı
             </p>
             <h4 className="mt-1 text-[14px] font-semibold text-ink">
-              {processing ? "Dosya aktarıldı, sunucuda hazırlanıyor" : "Belge sunucuya aktarılıyor"}
+              {processing ? "Belge yüklendi, incelemeye hazırlanıyor" : "Belge yükleniyor"}
             </h4>
           </div>
           <span className="rounded-pill bg-info-soft px-2.5 py-1 font-mono text-[11px] text-info">
@@ -335,15 +326,15 @@ function UploadingCard({
             {file.name} · {formatFileSize(file.size)}
           </span>
           <b className="flex-none font-mono font-semibold text-ink">
-            {processing ? "Sunucu işliyor" : percent === null || percent === undefined ? "Aktarılıyor" : `%${percent}`}
+            {processing ? "Hazırlanıyor" : percent === null || percent === undefined ? "Yükleniyor" : `%${percent}`}
           </b>
         </div>
 
         <div className="mt-4 rounded-card border border-border bg-surface-subtle px-3.5 py-3">
           <p className="text-[12.5px] leading-5 text-ink-secondary">
             {processing
-              ? "PDF doğrulanıyor, sayfa görüntüleri hazırlanıyor ve belge kaydı oluşturuluyor."
-              : "Gerçek aktarım yüzdesi dosyanın tarayıcıdan sunucuya gönderilen baytlarından hesaplanır."}
+              ? "Belgenin sayfaları hazırlanıyor ve okunabilirliği kontrol ediliyor."
+              : "Belge güvenli biçimde yükleniyor. Tamamlandığında inceleme için hazırlanacak."}
           </p>
           <p className="mt-1 text-[11.5px] text-ink-muted">Bu işlem tamamlanana kadar sayfadan ayrılmayın.</p>
         </div>
@@ -367,15 +358,10 @@ function ServerDocumentCard({ document }: { document: DocumentView }) {
       />
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
         <DocMeta label="Dosya" value={document.original_filename} />
-        <DocMeta label="Tür" value={document.mime_type} />
+        <DocMeta label="Belge türü" value={friendlyDocumentType(document.mime_type)} />
         <DocMeta label="Boyut" value={formatFileSize(document.size_bytes)} />
         <DocMeta label="Sayfa" value={String(document.page_count)} />
         <DocMeta label="Tarayan" value={document.scanned_by} />
-        <DocMeta
-          label="SHA-256"
-          value={`${document.document_sha256.slice(0, 12)}…`}
-          mono
-        />
       </dl>
     </Card>
   );
@@ -392,6 +378,13 @@ function DocMeta({ label, value, mono = false }: { label: string; value: string;
   );
 }
 
+function friendlyDocumentType(mimeType: string): string {
+  if (mimeType === "application/pdf") return "PDF belgesi";
+  if (mimeType === "image/jpeg") return "JPEG görüntüsü";
+  if (mimeType === "image/png") return "PNG görüntüsü";
+  return "Belge";
+}
+
 /* -------------------------------------------------------------------------- */
 /* Analyze / analyzing / retry                                                */
 /* -------------------------------------------------------------------------- */
@@ -405,9 +398,9 @@ function AnalyzingCard() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-info">
-              Canlı analiz
+              Belge incelemesi
             </p>
-            <h4 className="mt-1 text-[14px] font-semibold text-ink">Belge AI servisinde inceleniyor</h4>
+            <h4 className="mt-1 text-[14px] font-semibold text-ink">Belge içeriği inceleniyor</h4>
           </div>
           <span className="rounded-pill bg-info-soft px-2.5 py-1 font-mono text-[11px] text-info">
             {formatElapsed(elapsed)}
@@ -420,9 +413,9 @@ function AnalyzingCard() {
 
         <ol className="mt-4 space-y-2">
           {[
-            ["Belge okuma ve alan çıkarma", "AI /extract"],
-            ["Başvuru ve simüle sicil karşılaştırması", "Bank API → AI /analyze"],
-            ["Dokuz kontrol ve karar raporu", "Sonuçların kalıcı kaydı"],
+            ["Belge bilgileri okunuyor", "Şirket ve yetki alanları hazırlanıyor"],
+            ["Başvuru ve sicil bilgileri karşılaştırılıyor", "Temsilci eşleşmeleri kontrol ediliyor"],
+            ["Kontroller tamamlanıyor", "İnceleme sonucu hazırlanıyor"],
           ].map(([label, detail], index) => (
             <li key={label} className="flex items-center gap-2.5 rounded-control border border-border bg-surface-subtle px-3 py-2">
               <span className="grid size-5 flex-none place-items-center rounded-full bg-info-soft text-[10px] font-semibold text-info">
@@ -435,8 +428,7 @@ function AnalyzingCard() {
         </ol>
       </div>
       <p className="mt-3 text-[11.5px] leading-5 text-ink-muted">
-        Sunucu aşama yüzdesi yayınlamadığı için sahte yüzde yerine geçen süre gösterilir. Taranmış
-        veya çok sayfalı belgelerde analiz bir dakikadan uzun sürebilir.
+        Taranmış veya çok sayfalı belgelerde inceleme bir dakikadan uzun sürebilir.
       </p>
     </Card>
   );
@@ -478,15 +470,27 @@ function AnalyzeCard({
 
   async function handleAnalyze() {
     if (pending) return;
+    const loaderStartedAt = Date.now();
+    const cachedResultTargetMs = cachedResultLoaderDurationMs();
     setPending(true);
     setError(null);
     try {
-      onAggregate(await analyzeApplication(applicationId));
+      const { aggregate, extractionCacheHit } =
+        await analyzeApplicationForResultPage(applicationId);
+      if (extractionCacheHit) {
+        const remainingDelay = remainingResultLoaderDelayMs(
+          loaderStartedAt,
+          cachedResultTargetMs,
+        );
+        if (remainingDelay > 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, remainingDelay));
+        }
+      }
+      onAggregate(aggregate);
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
       if (cause instanceof ApiError && cause.code === "ANALYSIS_IN_PROGRESS") {
-        // Another request already started the analysis; the server state is
-        // authoritative — refetch and let the ANALYZING poll take over.
+        // Resume the existing analysis instead of starting a duplicate.
         onRefetch();
         return;
       }

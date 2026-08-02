@@ -119,7 +119,15 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+type ResponsePayload<T> = {
+  payload: T;
+  response: Response;
+};
+
+async function requestWithResponse<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<ResponsePayload<T>> {
   const { method = "GET", body, formData, signal } = options;
 
   let response: Response;
@@ -142,13 +150,20 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     });
   }
 
-  if (response.status === 204) return undefined as T;
+  if (response.status === 204) {
+    return { payload: undefined as T, response };
+  }
 
   const text = await response.text();
   const payload: unknown = text ? safeJsonParse(text) : null;
 
   if (!response.ok) throw toApiError(response, payload);
-  return payload as T;
+  return { payload: payload as T, response };
+}
+
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const result = await requestWithResponse<T>(path, options);
+  return result.payload;
 }
 
 /**
@@ -167,6 +182,15 @@ async function requestParsed<Schema extends z.ZodTypeAny>(
 ): Promise<z.infer<Schema>> {
   const payload = await request<unknown>(path, options);
   return parseSuccessfulPayload(schema, payload);
+}
+
+async function requestParsedWithResponse<Schema extends z.ZodTypeAny>(
+  path: string,
+  schema: Schema,
+  options: RequestOptions = {},
+): Promise<ResponsePayload<z.infer<Schema>>> {
+  const { payload, response } = await requestWithResponse<unknown>(path, options);
+  return { payload: parseSuccessfulPayload(schema, payload), response };
 }
 
 function parseSuccessfulPayload<Schema extends z.ZodTypeAny>(
@@ -424,6 +448,21 @@ export const analyzeApplication = (
     method: "POST",
     signal,
   });
+
+export async function analyzeApplicationForResultPage(
+  applicationId: number,
+  signal?: AbortSignal,
+): Promise<{ aggregate: ApplicationAggregate; extractionCacheHit: boolean }> {
+  const { payload, response } = await requestParsedWithResponse(
+    `/api/applications/${applicationId}/analyze`,
+    applicationAggregateSchema,
+    { method: "POST", signal },
+  );
+  return {
+    aggregate: payload,
+    extractionCacheHit: response.headers.get("X-Extraction-Cache") === "hit",
+  };
+}
 
 /** 409 STALE_CORRECTION when `expected_old_value` no longer matches. */
 export const correctExtraction = (

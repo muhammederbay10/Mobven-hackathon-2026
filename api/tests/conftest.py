@@ -96,6 +96,7 @@ def demo_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{(tmp_path / 'test.db').as_posix()}")
     monkeypatch.setenv("DEMO_MODE", "true")
     monkeypatch.setenv("AI_MODE", "stub")
+    monkeypatch.setenv("AI_EXTRACT_AVAILABLE", "false")
     monkeypatch.setenv("EXTRACTION_CACHE", "on")
     monkeypatch.setenv("ALLOWED_ORIGINS", "http://localhost:3000")
 

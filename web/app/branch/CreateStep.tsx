@@ -8,18 +8,7 @@ import type { ApplicationView } from "@/lib/types";
 import { ChevronRightIcon } from "@/components/Icon";
 import { Button, Checkbox, Field, Input } from "@/components/UI";
 
-/**
- * Step 1 — application intake and branch identity attestation.
- *
- * Uses `CreateApplicationRequest` exactly (guide section 10). The backend has
- * no later attestation endpoint, so `identity_verified_at_branch` must be true
- * before submission; the attestation card gates the submit button rather than
- * being silently defaulted. The TCKN stays masked everywhere.
- *
- * The outer branch stepper treats intake as one step. Inside it, this component
- * presents a two-stage onboarding flow so company data and applicant/branch
- * attestation are completed separately before document upload.
- */
+/** Step 1 — company details followed by applicant and branch verification. */
 
 type FormValues = {
   company_name: string;

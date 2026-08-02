@@ -1,0 +1,498 @@
+{
+  "schema_version": "1.0",
+  "document_id": "1",
+  "company": {
+    "name": "T.O.M. KATILIM BANKASI ANONİM ŞİRKETİ",
+    "taxNumber": "8500712792",
+    "mersisNumber": "0850071279200001",
+    "legalNameNormalized": "t o m katilim bankasi"
+  },
+  "notary": {
+    "name": "ÜSKÜDAR 21. NOTERLİĞİ",
+    "date": "2023-02-08",
+    "yevmiye": "6062"
+  },
+  "validUntil": null,
+  "representatives": [
+    {
+      "id": "rep-1",
+      "name": "Can ERSÖZ",
+      "nameNormalized": "can ersoz",
+      "nationalId": "182******70",
+      "title": "Yönetim Kurulu Başkanı – Birinci Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [
+        "TOLGA AKAR",
+        "ONUR ÖZKAN",
+        "ERHAN BOSTAN",
+        "Onur ÖZKAN",
+        "Erhan BOSTAN"
+      ],
+      "limits": null
+    },
+    {
+      "id": "rep-2",
+      "name": "Cengiz DOĞRU",
+      "nameNormalized": "cengiz dogru",
+      "nationalId": "176******18",
+      "title": "Yönetim Kurulu Üyesi – İkinci Derece İmza Yetkilisi",
+      "mode": "SOLE",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-3",
+      "name": "Mehmet KASAP",
+      "nameNormalized": "mehmet kasap",
+      "nationalId": "403******74",
+      "title": "Yönetim Kurulu Üyesi – Üçüncü Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-4",
+      "name": "Aydın KAYA",
+      "nameNormalized": "aydin kaya",
+      "nationalId": "569******86",
+      "title": "Yönetim Kurulu Üyesi – Dördüncü Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-5",
+      "name": "Onur ÖZKAN",
+      "nameNormalized": "onur ozkan",
+      "nationalId": "483******74",
+      "title": "Yönetim Kurulu Başkan Vekili ve Genel Müdür – Birinci Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [
+        "CAN ERSÖZ",
+        "Can ERSÖZ"
+      ],
+      "limits": null
+    },
+    {
+      "id": "rep-6",
+      "name": "Erhan BOSTAN",
+      "nameNormalized": "erhan bostan",
+      "nationalId": "239******60",
+      "title": "Yönetim Kurulu Üyesi – Birinci Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [
+        "CAN ERSÖZ",
+        "Can ERSÖZ"
+      ],
+      "limits": null
+    },
+    {
+      "id": "rep-7",
+      "name": "Sedat KORG",
+      "nameNormalized": "sedat korg",
+      "nationalId": "410******80",
+      "title": "Ürün Yönetimi ve İş Geliştirme Genel Müdür Yardımcısı / Genel Müdür Vekili – Üçüncü Derece İmza Yetkilisi",
+      "mode": "SOLE",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-8",
+      "name": "Özgür BİLGİLİ",
+      "nameNormalized": "ozgur bilgili",
+      "nationalId": "310******58",
+      "title": "Mali İşler, Hazine ve Hukuk Genel Müdür Yardımcısı – Dördüncü Derece İmza Yetkilisi",
+      "mode": "SOLE",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-9",
+      "name": "Taylan GÜNEY",
+      "nameNormalized": "taylan guney",
+      "nationalId": "481******14",
+      "title": "Bilgi Teknolojileri, İK ve İdari İşler Genel Müdür Yardımcısı – Dördüncü Derece İmza Yetkilisi",
+      "mode": "SOLE",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-10",
+      "name": "Sarp TÜZÜN",
+      "nameNormalized": "sarp tuzun",
+      "nationalId": "312******10",
+      "title": "İç Sistemler Başkanı – Beşinci Derece İmza Yetkilisi",
+      "mode": "SOLE",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-11",
+      "name": "Serkan",
+      "nameNormalized": "serkan",
+      "nationalId": "193******30",
+      "title": "Krediler ve Analitik Genel Müdür Yardımcısı – Beşinci Derece İmza Yetkilisi",
+      "mode": "SOLE",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-12",
+      "name": "Dilşad SEYER",
+      "nameNormalized": "dilsad seyer",
+      "nationalId": "154******56",
+      "title": "Hukuk Müdürü – Beşinci Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-13",
+      "name": "Tulay İPEK CIKLAKARSLI",
+      "nameNormalized": "tulay ipek ciklakarsli",
+      "nationalId": "374******14",
+      "title": "İnsan Kaynakları ve İdari İşler Müdürü – Beşinci Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-14",
+      "name": "Özkan SÖNMEZ",
+      "nameNormalized": "ozkan sonmez",
+      "nationalId": "126******66",
+      "title": "Muhasebe ve Vergi Müdürü – Beşinci Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-15",
+      "name": "Ahmet POLAT",
+      "nameNormalized": "ahmet polat",
+      "nationalId": "129******48",
+      "title": "İş Geliştirme Müdürü – Beşinci Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-16",
+      "name": "Ömer Uğur DOĞAN",
+      "nameNormalized": "omer ugur dogan",
+      "nationalId": "461******28",
+      "title": "Kredi Politikaları ve Karar Destek Sistemleri Müdürü – Altıncı Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-17",
+      "name": "Mine EREN KOSOVALI",
+      "nameNormalized": "mine eren kosovali",
+      "nationalId": "440******62",
+      "title": "Risk İzleme ve Kanuni Takip Müdürü – Altıncı Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-18",
+      "name": "Neslihan ÇELİK",
+      "nameNormalized": "neslihan celik",
+      "nationalId": "413******98",
+      "title": "Müşteri Hizmetleri ve Operasyon Müdürü – Altıncı Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-19",
+      "name": "Tuğba DURAN",
+      "nameNormalized": "tugba duran",
+      "nationalId": "118******84",
+      "title": "İnsan Kaynakları İş Ortağı, Bordro ve Özlük İşleri Yöneticisi – Altıncı Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-20",
+      "name": "Murat KÖKDEMİR",
+      "nameNormalized": "murat kokdemir",
+      "nationalId": "374******96",
+      "title": "Bilgi Güvenliği Genel Müdür Yardımcısı – Altıncı Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [],
+      "limits": null
+    },
+    {
+      "id": "rep-21",
+      "name": "Ziya GÜMÜŞ",
+      "nameNormalized": "ziya gumus",
+      "nationalId": "526******10",
+      "title": "Muhasebe ve Vergi Yöneticisi – Altıncı Derece İmza Yetkilisi",
+      "mode": "JOINT",
+      "coSigners": [],
+      "limits": null
+    }
+  ],
+  "fieldsNeedingReview": [
+    "raw_chunks[8]",
+    "rules[0].joint_with[0]",
+    "signatories[0].joint_with_names[0]",
+    "raw_chunks[3].output.rules[10].joint_with",
+    "raw_chunks[3].output.rules[11].amount_min",
+    "raw_chunks[3].output.rules[11].joint_with",
+    "raw_chunks[3].output.rules[12].joint_with",
+    "raw_chunks[3].output.rules[13].joint_with",
+    "raw_chunks[3].output.rules[14].joint_with",
+    "raw_chunks[3].output.rules[15].joint_with",
+    "raw_chunks[3].output.rules[16].joint_with",
+    "raw_chunks[3].output.rules[18].amount_min",
+    "raw_chunks[3].output.rules[18].joint_with",
+    "raw_chunks[3].output.rules[19].joint_with",
+    "raw_chunks[3].output.rules[20].joint_with",
+    "raw_chunks[3].output.rules[2].joint_with",
+    "raw_chunks[3].output.rules[4].amount_min",
+    "raw_chunks[3].output.rules[4].joint_with",
+    "raw_chunks[3].output.rules[5].amount_min",
+    "raw_chunks[3].output.rules[5].joint_with",
+    "raw_chunks[3].output.rules[6].amount_min",
+    "raw_chunks[3].output.rules[6].joint_with",
+    "raw_chunks[3].output.rules[7].amount_min",
+    "raw_chunks[3].output.rules[7].joint_with",
+    "raw_chunks[3].output.rules[9].amount_min",
+    "raw_chunks[3].output.rules[9].joint_with",
+    "raw_chunks[5].output.rules[11].joint_with",
+    "raw_chunks[5].output.rules[12].joint_with",
+    "raw_chunks[5].output.rules[14].joint_with",
+    "raw_chunks[5].output.rules[15].joint_with",
+    "raw_chunks[5].output.rules[16].joint_with",
+    "raw_chunks[5].output.rules[2].joint_with",
+    "raw_chunks[5].output.rules[4].joint_with",
+    "raw_chunks[5].output.rules[6].joint_with",
+    "raw_chunks[1].output.rules[0].evidence.quote",
+    "raw_chunks[1].output.rules[10].evidence.quote",
+    "raw_chunks[1].output.rules[1].evidence.quote",
+    "raw_chunks[1].output.rules[2].evidence.quote",
+    "raw_chunks[1].output.rules[3].evidence.quote",
+    "raw_chunks[1].output.rules[4].evidence.quote",
+    "raw_chunks[1].output.rules[5].evidence.quote",
+    "raw_chunks[1].output.rules[6].evidence.quote",
+    "raw_chunks[1].output.rules[7].evidence.quote",
+    "raw_chunks[1].output.rules[8].evidence.quote",
+    "raw_chunks[1].output.rules[9].evidence.quote",
+    "raw_chunks[3].output.rules[0].evidence.quote",
+    "raw_chunks[3].output.rules[1].evidence.quote",
+    "raw_chunks[3].output.rules[21].evidence.quote",
+    "raw_chunks[3].output.rules[8].evidence.quote",
+    "raw_chunks[5].output.rules[1].evidence.quote",
+    "rules[27]",
+    "rules[32]",
+    "rules[33]",
+    "rules[34]",
+    "rules[35]",
+    "rules[36]",
+    "rules[37]",
+    "representatives[2].mode",
+    "representatives[3].mode",
+    "representatives[11].mode",
+    "representatives[12].mode",
+    "representatives[13].mode",
+    "representatives[14].mode",
+    "representatives[15].mode",
+    "representatives[16].mode",
+    "representatives[17].mode",
+    "representatives[18].mode",
+    "representatives[19].mode",
+    "representatives[20].mode",
+    "rules[0].joint_with",
+    "rules[9].joint_with",
+    "rules[11].joint_with",
+    "rules[13].joint_with",
+    "rules[14].joint_with",
+    "rules[15].joint_with",
+    "rules[16].joint_with",
+    "rules[17].joint_with",
+    "rules[18].joint_with",
+    "rules[19].joint_with",
+    "rules[20].joint_with",
+    "rules[21].joint_with",
+    "rules[22].joint_with",
+    "rules[24].joint_with",
+    "rules[25].joint_with",
+    "rules[26].joint_with",
+    "rules[27].joint_with",
+    "rules[28].joint_with",
+    "rules[29].joint_with",
+    "rules[30].joint_with",
+    "rules[31].joint_with"
+  ],
+  "evidence": {
+    "authorityClause": "Türkiye Uyruklu 182******70 Kimlik No’lu, İSTANBUL/ÇEKMEKÖY adresinde ikamet eden Can ERSÖZ; 12.12.2023 tarihine kadar (Yönetim Kurulu Başkanı – Birinci Derece İmza Yetkilisi) Temsile Yetkili olarak seçilmiştir. Yetki şekli: (TOLGA AKAR, ONUR ÖZKAN, ERHAN BOSTAN)‘ dan Herhangi Birisiyle Müştereken Temsile Yetkilidir.",
+    "page": 1
+  },
+  "rules": [
+    {
+      "scope": "general",
+      "threshold": null,
+      "mode": "SOLE",
+      "coSigners": [],
+      "blocked": false,
+      "evidence": {
+        "page": 1,
+        "quote": "Türkiye Uyruklu 176******18 Kimlik No’lu, İSTANBUL/EYÜPSULTAN adresinde ikamet eden Cengiz DOĞRU; 12.12.2023 tarihine kadar (Yönetim Kurulu Üyesi – İkinci Derece İmza Yetkilisi) Temsile Yetkili olarak seçilmiştir. Yetki şekli: Sınırlı Yetkili (İç Yönergede Belirtilen Şekilde Yetkilendirilmiştir.)"
+      }
+    },
+    {
+      "scope": "general",
+      "threshold": null,
+      "mode": "JOINT",
+      "coSigners": [
+        "rep-5",
+        "rep-1"
+      ],
+      "blocked": false,
+      "evidence": {
+        "page": 1,
+        "quote": "Türkiye Uyruklu 483******74 Kimlik No’lu, İSTANBUL/BEŞİKTAŞ adresinde ikamet eden Onur ÖZKAN; 12.12.2023 tarihine kadar (Yönetim Kurulu Başkan Vekili ve Genel Müdür – Birinci Derece İmza Yetkilisi) Temsile Yetkili olarak seçilmiştir. Yetki şekli: (CAN ERSÖZ) ile birlikte Müştereken Temsile Yetkilidir."
+      }
+    },
+    {
+      "scope": "general",
+      "threshold": null,
+      "mode": "JOINT",
+      "coSigners": [
+        "rep-6",
+        "rep-1"
+      ],
+      "blocked": false,
+      "evidence": {
+        "page": 1,
+        "quote": "Türkiye Uyruklu 239******60 Kimlik No’lu, İSTANBUL/KADIKÖY adresinde ikamet eden Erhan BOSTAN; 12.12.2023 tarihine kadar (Yönetim Kurulu Üyesi – Birinci Derece İmza Yetkilisi) Temsile Yetkili olarak seçilmiştir. Yetki şekli: (CAN ERSÖZ) ile birlikte Müştereken Temsile Yetkilidir."
+      }
+    },
+    {
+      "scope": "general",
+      "threshold": null,
+      "mode": "SOLE",
+      "coSigners": [],
+      "blocked": false,
+      "evidence": {
+        "page": 1,
+        "quote": "Türkiye Uyruklu 410******80 Kimlik No’lu, İSTANBUL/MALTEPE adresinde ikamet eden Sedat KORG; Aksi Karar Alınıncaya kadar (Ürün Yönetimi ve İş Geliştirme Genel Müdür Yardımcısı / Genel Müdür Vekili – Üçüncü Derece İmza Yetkilisi) Temsile Yetkili olarak seçilmiştir. Yetki şekli: Sınırlı Yetkili (İç Yönergede Belirtilen Şekilde Yetkilendirilmiştir.)"
+      }
+    },
+    {
+      "scope": "general",
+      "threshold": null,
+      "mode": "SOLE",
+      "coSigners": [],
+      "blocked": false,
+      "evidence": {
+        "page": 1,
+        "quote": "Türkiye Uyruklu 310******58 Kimlik No’lu, İSTANBUL/GAZİOSMANPAŞA adresinde ikamet eden Özgür BİLGİLİ; Aksi Karar Alınıncaya kadar (Mali İşler, Hazine ve Hukuk Genel Müdür Yardımcısı – Dördüncü Derece İmza Yetkilisi) Temsile Yetkili olarak seçilmiştir. Yetki şekli: Sınırlı Yetkili (İç Yönergede Belirtilen Şekilde Yetkilendirilmiştir.)"
+      }
+    },
+    {
+      "scope": "general",
+      "threshold": null,
+      "mode": "SOLE",
+      "coSigners": [],
+      "blocked": false,
+      "evidence": {
+        "page": 1,
+        "quote": "Türkiye Uyruklu 481******14 Kimlik No’lu, İSTANBUL/SARIYER adresinde ikamet eden Taylan GÜNEY; Aksi Karar Alınıncaya kadar (Bilgi Teknolojileri, İK ve İdari İşler Genel Müdür Yardımcısı – Dördüncü Derece İmza Yetkilisi) Temsile Yetkili olarak seçilmiştir. Yetki şekli: Sınırlı Yetkili (İç Yönergede Belirtilen Şekilde Yetkilendirilmiştir.)"
+      }
+    },
+    {
+      "scope": "general",
+      "threshold": null,
+      "mode": "SOLE",
+      "coSigners": [],
+      "blocked": false,
+      "evidence": {
+        "page": 1,
+        "quote": "Türkiye Uyruklu 312******10 Kimlik No’lu, İSTANBUL/SARIYER adresinde ikamet eden Sarp TÜZÜN; Aksi Karar Alınıncaya kadar (İç Sistemler Başkanı – Beşinci Derece İmza Yetkilisi) Temsile Yetkili olarak seçilmiştir. Yetki şekli: Sınırlı Yetkili (İç Yönergede Belirtilen Şekilde Yetkilendirilmiştir.)"
+      }
+    },
+    {
+      "scope": "general",
+      "threshold": null,
+      "mode": "SOLE",
+      "coSigners": [],
+      "blocked": false,
+      "evidence": {
+        "page": 1,
+        "quote": "Türkiye Uyruklu 193******30 Kimlik No’lu, İSTANBUL/KÜÇÜKÇEKMECE adresinde ikamet eden Serkan; Aksi Karar Alınıncaya kadar (Krediler ve Analitik Genel Müdür Yardımcısı – Beşinci Derece İmza Yetkilisi) Temsile Yetkili olarak seçilmiştir. Yetki şekli: Sınırlı Yetkili (İç Yönergede Belirtilen Şekilde Yetkilendirilmiştir.)"
+      }
+    },
+    {
+      "scope": "general",
+      "threshold": null,
+      "mode": "SOLE",
+      "coSigners": [],
+      "blocked": false,
+      "evidence": {
+        "page": 3,
+        "quote": "Üst derecedeki imza yetkilileri, alt derecedeki imza yetkililerine de sahiptirler."
+      }
+    },
+    {
+      "scope": "credit",
+      "threshold": null,
+      "mode": "SOLE",
+      "coSigners": [],
+      "blocked": false,
+      "evidence": {
+        "page": 3,
+        "quote": "ÖZELLİKLİ SÖZLEŞME VE İŞLEMLER: Tutar sınırlaması olmaksızın aşağıda listelenen iş ve işlemler için Banka Yönetim Kurulu kararı alınması gerekmektedir. Yönetim Kurulu oy çokluğu ile alacağı karar ile aşağıda yer alan iş ve işlemlerin gerçekleştirilmesi amacıyla, Genel Müdürlüğün ilgili departmanlarında çalışan Sınırlı Yetkili Ticari Vekiller’i yetkilendirir."
+      }
+    },
+    {
+      "scope": "real_estate",
+      "threshold": null,
+      "mode": "SOLE",
+      "coSigners": [],
+      "blocked": false,
+      "evidence": {
+        "page": 3,
+        "quote": "ÖZELLİKLİ SÖZLEŞME VE İŞLEMLER: Tutar sınırlaması olmaksızın aşağıda listelenen iş ve işlemler için Banka Yönetim Kurulu kararı alınması gerekmektedir. Yönetim Kurulu oy çokluğu ile alacağı karar ile aşağıda yer alan iş ve işlemlerin gerçekleştirilmesi amacıyla, Genel Müdürlüğün ilgili departmanlarında çalışan Sınırlı Yetkili Ticari Vekiller’i yetkilendirir."
+      }
+    },
+    {
+      "scope": "securities",
+      "threshold": null,
+      "mode": "SOLE",
+      "coSigners": [],
+      "blocked": false,
+      "evidence": {
+        "page": 3,
+        "quote": "ÖZELLİKLİ SÖZLEŞME VE İŞLEMLER: Tutar sınırlaması olmaksızın aşağıda listelenen iş ve işlemler için Banka Yönetim Kurulu kararı alınması gerekmektedir. Yönetim Kurulu oy çokluğu ile alacağı karar ile aşağıda yer alan iş ve işlemlerin gerçekleştirilmesi amacıyla, Genel Müdürlüğün ilgili departmanlarında çalışan Sınırlı Yetkili Ticari Vekiller’i yetkilendirir."
+      }
+    },
+    {
+      "scope": "general",
+      "threshold": null,
+      "mode": "SOLE",
+      "coSigners": [],
+      "blocked": false,
+      "evidence": {
+        "page": 3,
+        "quote": "ÖZELLİKLİ SÖZLEŞME VE İŞLEMLER: Tutar sınırlaması olmaksızın aşağıda listelenen iş ve işlemler için Banka Yönetim Kurulu kararı alınması gerekmektedir. Yönetim Kurulu oy çokluğu ile alacağı karar ile aşağıda yer alan iş ve işlemlerin gerçekleştirilmesi amacıyla, Genel Müdürlüğün ilgili departmanlarında çalışan Sınırlı Yetkili Ticari Vekiller’i yetkilendirir."
+      }
+    },
+    {
+      "scope": "securities",
+      "threshold": null,
+      "mode": "SOLE",
+      "coSigners": [],
+      "blocked": false,
+      "evidence": {
+        "page": 4,
+        "quote": "Menkul Kıymet İşlemlerine İlişkin Yetki: Şirket payları dışındaki menkul kıymetler ile ilgili ihraç dışındaki her türlü hukuki işlemin Banka açısından bağlayıcı olması için 100 Milyon TL üstündeki işlemlerde Yönetim Kurulu kararı gereklidir."
+      }
+    }
+  ]
+}

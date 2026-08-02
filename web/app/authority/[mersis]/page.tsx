@@ -15,9 +15,10 @@ import { rememberMersis } from "@/lib/clientState";
 import {
   AUTHORITY_MODE_LABEL,
   formatAmountMinor,
+  formatActor,
+  formatAuditAction,
   formatDate,
   formatInstant,
-  formatLatency,
   formatRuleScope,
   TRANSACTION_VERDICT_LABEL,
 } from "@/lib/format";
@@ -32,14 +33,7 @@ import { Card, Panel, PageHeading, SectionLabel } from "@/components/Layout";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { SimBadge, StatusBadge } from "@/components/Status";
 
-/**
- * `/authority/{mersis}` — the bank-side authority record (guide section 13).
- *
- * The registry join below is display-only: it shows each person's *current*
- * simulated-registry status next to the frozen authority record. Nothing on
- * this screen approves or denies anything — transaction enforcement rereads
- * the registry on the backend.
- */
+/** Authority record, version history, transactions, and audit activity. */
 
 type Loadable<T> =
   | { kind: "loading" }
@@ -85,7 +79,6 @@ export default function AuthorityRecordPage({
           set({ kind: "error", error });
         });
 
-    // Guide section 13: fetch in parallel.
     const authorityPromise = getAuthority(mersis, signal);
     void track(authorityPromise, setAuthority);
     void track(getAuthorityHistory(mersis, signal).then((r) => r.items), setHistory);
@@ -198,7 +191,7 @@ function AuthorityRecordPanel({
           <MetaRow label="Geçerlilik" value={record.valid_until ? formatDate(record.valid_until) : "Süresiz"} />
           <MetaRow label="Kaynak başvuru" value={`#${record.source_application_id}`} />
           <MetaRow label="Kaynak belge" value={`#${record.source_document_id}`} />
-          <MetaRow label="Doğrulayan" value={record.verified_by} />
+          <MetaRow label="Doğrulayan" value={formatActor(record.verified_by)} />
           <MetaRow label="Doğrulama zamanı" value={formatInstant(record.verified_at)} />
         </dl>
 
@@ -374,7 +367,6 @@ function TransactionsPanel({
                     {decision.authorization_code}
                   </span>
                 ) : null}
-                <span className="text-ink-muted">{formatLatency(decision.latency_ms)}</span>
               </div>
               <Card className="mt-1.5 !p-2.5">
                 <ul className="flex flex-col gap-0.5">
@@ -410,8 +402,8 @@ function AuditPanel({ audit }: { audit: Loadable<AuditItem[]> }) {
               key={item.id}
               className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b border-border/60 px-1 py-2 text-[12.5px] last:border-b-0"
             >
-              <span className="font-mono text-[11.5px] text-ink">{item.action}</span>
-              <span className="text-ink-secondary">{item.actor}</span>
+              <span className="font-medium text-ink">{formatAuditAction(item.action)}</span>
+              <span className="text-ink-secondary">{formatActor(item.actor)}</span>
               <span className="ml-auto text-[11.5px] text-ink-muted">
                 {formatInstant(item.created_at)}
               </span>

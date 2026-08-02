@@ -52,8 +52,7 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // Turkish is the user-facing default (plan section 10.1), so `lang` is `tr`:
-  // it drives hyphenation, spell-check and screen-reader pronunciation.
+  // Turkish language metadata improves pronunciation, spell-checking, and hyphenation.
   return (
     <html lang="tr" className={`${interLatin.variable} ${interLatinExt.variable}`}>
       <body>

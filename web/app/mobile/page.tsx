@@ -4,13 +4,7 @@ import { LoadingState } from "@/components/States";
 
 import { MobileClient } from "./MobileClient";
 
-/**
- * `/mobile?mersis={mersis}` — Act 2: transactions and co-signature.
- *
- * The MERSİS lives in the URL query (guide section 5) so a refresh restores
- * the screen from the server. The co-signer experience is a state of this
- * route, not another route.
- */
+/** Restores the selected company when the mobile transaction page is refreshed. */
 
 export default function MobilePage() {
   return (

@@ -11,15 +11,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { SimBadge, StatusBadge } from "@/components/Status";
 import { Button } from "@/components/UI";
 
-/**
- * `/registry` — simulated trade-registry administration (guide section 12).
- *
- * Representatives are addressed by stable `rep_id`, never by name or array
- * position. Every mutation asks for confirmation, disables only its own row
- * while saving, and replaces the whole company with what the server returned.
- * When demo mode is off the backend answers 403 DEMO_MODE_DISABLED and the
- * page falls back to read-only.
- */
+/** Test-registry administration for company representatives. */
 
 type RegistryState =
   | { kind: "loading" }
@@ -50,7 +42,6 @@ export default function RegistryPage() {
     return () => abortRef.current?.abort();
   }, [load]);
 
-  /** A mutation returns the updated company; swap it into local display state. */
   function replaceCompany(company: RegistryCompany) {
     setState((current) =>
       current.kind === "ready"
@@ -73,22 +64,21 @@ export default function RegistryPage() {
         title={
           <>
             Sicil kayıtları
-            <SimBadge />
+            <SimBadge label="test ortamı" />
           </>
         }
-        subtitle="Prototipte MERSİS yerine yerel mock servis. Üretimde kurumsal entegrasyon gerekir."
+        subtitle="Yetki kontrollerinde kullanılan şirket ve temsilci durumlarını görüntüleyin."
       />
 
       <div className="mb-5 rounded-panel border border-warning/20 bg-warning-soft px-4 py-3 text-[13px] text-warning">
         <span aria-hidden>! </span>
-        Bu ekran gerçek MERSİS değildir. Yetkiyi düşürdüğünüzde hem yeni başvuru hem de mobil işlem
-        anında bloke olur.
+        Bu ekran test ortamındaki sicil kayıtlarını gösterir. Bir temsilcinin yetkisini
+        kaldırdığınızda yeni başvurular ve mobil işlemler güncel duruma göre değerlendirilir.
       </div>
 
       {demoDisabled ? (
         <div className="mb-5 rounded-panel border border-border bg-surface-subtle px-4 py-3 text-[13px] text-ink-secondary">
-          Demo modu kapalı: sicil bu oturumda salt okunur. Kayıtlar görüntülenebilir ama
-          değiştirilemez.
+          Sicil kayıtları şu anda yalnızca görüntülenebilir. Değişiklik işlemleri bu ortamda kapalıdır.
         </div>
       ) : null}
 

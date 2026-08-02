@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
+from dataclasses import dataclass
 
 from sqlmodel import Session, select
 
@@ -29,6 +30,12 @@ from api.services import ai_client, application_service, audit_service, registry
 _LOCKS: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
+@dataclass(frozen=True)
+class AnalysisOutcome:
+    aggregate: ApplicationAggregate
+    extraction_cache_hit: bool
+
+
 async def analyze_application(
     session: Session,
     application_id: int,
@@ -38,6 +45,25 @@ async def analyze_application(
     client: ai_client.AIServiceClient | None = None,
 ) -> ApplicationAggregate:
     """Analyze once, persist atomically, and return the restored aggregate."""
+    outcome = await analyze_application_with_metadata(
+        session,
+        application_id,
+        correlation_id=correlation_id,
+        settings=settings,
+        client=client,
+    )
+    return outcome.aggregate
+
+
+async def analyze_application_with_metadata(
+    session: Session,
+    application_id: int,
+    *,
+    correlation_id: str,
+    settings: Settings | None = None,
+    client: ai_client.AIServiceClient | None = None,
+) -> AnalysisOutcome:
+    """Analyze once and report whether document extraction came from cache."""
     settings = settings or get_settings()
     async with _LOCKS[application_id]:
         application = application_service.get_application(session, application_id)
@@ -53,7 +79,10 @@ async def analyze_application(
                 status_code=409,
             )
         if application.status is ApplicationStatus.ANALYZED:
-            return application_service.aggregate(session, application_id)
+            return AnalysisOutcome(
+                aggregate=application_service.aggregate(session, application_id),
+                extraction_cache_hit=False,
+            )
         if application.status is ApplicationStatus.ANALYZING:
             raise ApiError(
                 ErrorCode.ANALYSIS_IN_PROGRESS,
@@ -97,6 +126,7 @@ async def analyze_application(
             file_bytes = original.read_bytes()
             cache = ai_client.ExtractionCache(settings)
             extraction_result = cache.get(document.sha256, engine)
+            extraction_cache_hit = extraction_result is not None
             if extraction_result is None:
                 extraction_result = await service.extract(
                     file_bytes=file_bytes,
@@ -168,7 +198,10 @@ async def analyze_application(
             _mark_failed(session, application_id, correlation_id, exc)
             raise
 
-        return application_service.aggregate(session, application_id)
+        return AnalysisOutcome(
+            aggregate=application_service.aggregate(session, application_id),
+            extraction_cache_hit=extraction_cache_hit,
+        )
 
 
 def _mark_failed(

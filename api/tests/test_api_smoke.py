@@ -187,6 +187,8 @@ def test_demo_mutations_are_refused_when_demo_mode_is_off(
 def test_cors_allows_the_configured_origin_only(client: TestClient) -> None:
     allowed = client.get("/health", headers={"Origin": "http://localhost:3000"})
     assert allowed.headers.get("access-control-allow-origin") == "http://localhost:3000"
+    exposed = allowed.headers.get("access-control-expose-headers", "")
+    assert "X-Extraction-Cache" in exposed
 
     denied = client.get("/health", headers={"Origin": "http://evil.example"})
     assert "access-control-allow-origin" not in denied.headers

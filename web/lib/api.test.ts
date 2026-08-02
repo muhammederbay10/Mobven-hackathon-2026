@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ApiError,
   API_BASE_URL,
+  analyzeApplicationForResultPage,
   clearExtractionCache,
   correctExtraction,
   createApplication,
@@ -121,6 +122,25 @@ describe("request construction", () => {
 });
 
 describe("strict response parsing", () => {
+  it("reports extraction cache hits for the result-page loader", async () => {
+    stubFetch(
+      jsonResponse(
+        {
+          application: { ...APPLICATION_VIEW, status: "ANALYZED" },
+          document: null,
+          extraction: null,
+          report: null,
+          corrections: [],
+          authority: null,
+        },
+        { headers: { "X-Extraction-Cache": "hit" } },
+      ),
+    );
+    const result = await analyzeApplicationForResultPage(12);
+    expect(result.extractionCacheHit).toBe(true);
+    expect(result.aggregate.application.status).toBe("ANALYZED");
+  });
+
   it("returns the parsed aggregate for a valid body", async () => {
     stubFetch(
       jsonResponse({

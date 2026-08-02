@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   ApiError,
@@ -18,6 +18,7 @@ import {
 } from "@/lib/branch";
 import {
   AUTHORITY_MODE_LABEL,
+  formatActor,
   formatAmountMinor,
   formatDate,
   formatInstant,
@@ -36,15 +37,7 @@ import { Card, SectionLabel } from "@/components/Layout";
 import { SimBadge, StatusIcon, VerdictBanner } from "@/components/Status";
 import { Button, Field, Input } from "@/components/UI";
 
-/**
- * Step 3 — extraction, evidence, checks, corrections and decision (guide
- * section 10). Fixed layout order: verdict banner, document viewer, extracted
- * fields, review warnings, the nine checks in backend order (never sorted,
- * reason/evidence verbatim), correction history, decision controls.
- *
- * Nothing here derives a verdict: every status, check and decision is rendered
- * exactly as the backend returned it.
- */
+/** Step 3 — extracted information, checks, corrections, and decision. */
 
 const SIMULATED_CHECK_IDS = new Set(["registry_status", "registry_representative_match"]);
 
@@ -76,8 +69,7 @@ export function ReviewStep({
   };
 
   if (document === null || extraction === null || report === null) {
-    // ANALYZED without its artifacts is a server-side inconsistency; render it
-    // honestly instead of inventing content.
+    // An analyzed application cannot be reviewed without all three artifacts.
     return (
       <div className="p-4 text-[13px] text-ink-secondary">
         İnceleme verisi eksik görünüyor. Sayfayı yenileyin; sorun sürerse analiz yeniden
@@ -222,7 +214,7 @@ function DocumentViewer({
 /* Extracted fields                                                           */
 /* -------------------------------------------------------------------------- */
 
-/** Nulls render as "Okunamadı" and are never replaced by guesses (guide §11). */
+/** Missing extracted values are shown as unreadable rather than guessed. */
 function ValueOrUnread({ value }: { value: string | null }) {
   if (value === null || value === "") {
     return <span className="text-warning">Okunamadı</span>;
@@ -302,29 +294,88 @@ function ExtractionPanel({
         </blockquote>
       </div>
 
-      <div className="mt-3">
-        <div className="mb-1.5 flex items-center justify-between gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
-            Temsilciler
-          </span>
-          <span className="text-[11px] text-ink-muted">
-            {extraction.representatives.length} kişi
-          </span>
-        </div>
-        {/* Accordion: one compact summary row per representative, details on
-            demand — the review column stays short instead of scrolling. */}
-        <ul className="flex flex-col gap-1.5">
-          {extraction.representatives.map((rep) => (
-            <RepresentativeAccordionItem
-              key={rep.id}
-              representative={rep}
-              onEditField={onEditField}
-              activeTargetKey={activeTargetKey}
-            />
-          ))}
-        </ul>
-      </div>
+      <RepresentativesAccordion
+        representatives={extraction.representatives}
+        onEditField={onEditField}
+        activeTargetKey={activeTargetKey}
+      />
     </Card>
+  );
+}
+
+function RepresentativesAccordion({
+  representatives,
+  onEditField,
+  activeTargetKey,
+}: {
+  representatives: ExtractionResult["representatives"];
+  onEditField: ((targetKey: string) => void) | null;
+  activeTargetKey: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const hasActiveRepresentative = representatives.some(
+    (rep) =>
+      activeTargetKey === `representatives[${rep.id}].name` ||
+      activeTargetKey === `representatives[${rep.id}].mode`,
+  );
+
+  // A representative selected from the correction editor must remain visible,
+  // even if the parent group was previously collapsed.
+  useEffect(() => {
+    if (hasActiveRepresentative) setOpen(true);
+  }, [hasActiveRepresentative]);
+
+  return (
+    <section
+      className={`mt-3 overflow-hidden rounded-card border transition-colors ${
+        hasActiveRepresentative ? "border-info" : "border-border"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2.5 bg-surface-subtle px-3 py-3 text-left transition-colors hover:bg-cyan-soft"
+      >
+        <ChevronDownIcon
+          width={15}
+          height={15}
+          className={`flex-none text-ink-muted transition-transform duration-150 ${
+            open ? "" : "-rotate-90"
+          }`}
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[12.5px] font-semibold text-ink">Temsilciler</span>
+          <span className="mt-0.5 block text-[11px] text-ink-muted">
+            Belgeden okunan yetkili kişiler
+          </span>
+        </span>
+        <span className="flex-none rounded-pill border border-border bg-surface px-2.5 py-0.5 text-[11px] font-medium text-ink-secondary shadow-panel">
+          {representatives.length} kişi
+        </span>
+      </button>
+
+      {open ? (
+        <div className="border-t border-border bg-surface px-2.5 py-2.5">
+          {representatives.length > 0 ? (
+            <ul className="flex flex-col gap-1.5">
+              {representatives.map((rep) => (
+                <RepresentativeAccordionItem
+                  key={rep.id}
+                  representative={rep}
+                  onEditField={onEditField}
+                  activeTargetKey={activeTargetKey}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="px-1 py-2 text-[12px] text-ink-muted">
+              Belgede temsilci bilgisi okunamadı.
+            </p>
+          )}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -337,7 +388,7 @@ function ExtractionRow({
 }: {
   label: string;
   children: React.ReactNode;
-  /** Omitted for fields the backend allowlist cannot correct (e.g. notary). */
+  /** Omitted for read-only fields such as notary information. */
   targetKey?: string;
   onEditField?: ((targetKey: string) => void) | null;
   activeTargetKey?: string | null;
@@ -414,7 +465,7 @@ function RepresentativeAccordionItem({
 
       {open ? (
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-border px-3 py-2.5 text-[12px]">
-          <RepDetail label="Belge kimliği" value={rep.id} mono />
+          <RepDetail label="Belgedeki kayıt" value={`#${rep.id.replace(/^rep-/, "")}`} />
           <RepDetail label="Görev" value={rep.title ?? "—"} />
           <RepDetail label="TCKN" value={rep.nationalId ?? "—"} mono />
           <RepDetail
@@ -473,7 +524,7 @@ function RepDetail({
 }
 
 /* -------------------------------------------------------------------------- */
-/* The nine checks — backend order, verbatim content                          */
+/* The nine checks                                                            */
 /* -------------------------------------------------------------------------- */
 
 function ChecksPanel({ checks }: { checks: CheckResult[] }) {
@@ -506,8 +557,7 @@ function ChecksPanel({ checks }: { checks: CheckResult[] }) {
 }
 
 /**
- * Check evidence is a flexible dictionary (guide section 10): render known
- * safe scalars and never assume a bounding box.
+ * Check evidence is a flexible dictionary; render safe scalar values only.
  */
 function CheckEvidence({ check }: { check: CheckResult }) {
   const entries = Object.entries(check.evidence).filter(
@@ -564,12 +614,12 @@ function targetOptions(extraction: ExtractionResult): TargetOption[] {
   for (const rep of extraction.representatives) {
     options.push({
       key: `representatives[${rep.id}].name`,
-      label: `Temsilci adı — ${rep.name} (${rep.id})`,
+      label: `Temsilci adı — ${rep.name}`,
       target: { kind: "representative", sourceId: rep.id, field: "name" },
     });
     options.push({
       key: `representatives[${rep.id}].mode`,
-      label: `İmza şekli — ${rep.name} (${rep.id})`,
+      label: `İmza şekli — ${rep.name}`,
       target: { kind: "representative", sourceId: rep.id, field: "mode" },
     });
   }
@@ -624,9 +674,10 @@ function CorrectionsPanel({
               className="rounded-card border border-border px-3 py-2 text-[12.5px]"
             >
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <code className="rounded-[5px] bg-surface-subtle px-1.5 py-px font-mono text-[11px] text-ink-secondary">
-                  {correction.field_path}
-                </code>
+                <span className="rounded-pill bg-surface-subtle px-2 py-0.5 text-[11px] font-medium text-ink-secondary">
+                  {options.find((option) => option.key === correction.field_path)?.label ??
+                    "Düzeltilen alan"}
+                </span>
                 <span className="text-ink-secondary">
                   <s className="text-ink-muted">
                     {formatCorrectionValue(correction.old_value_json.value)}
@@ -638,7 +689,7 @@ function CorrectionsPanel({
                 </span>
               </div>
               <div className="mt-0.5 text-[11.5px] text-ink-muted">
-                {correction.reviewer} · {formatInstant(correction.created_at)} — {correction.reason}
+                {formatActor(correction.reviewer)} · {formatInstant(correction.created_at)} — {correction.reason}
               </div>
             </li>
           ))}
@@ -704,8 +755,7 @@ function CorrectionForm({
         corrections: [
           {
             field_path: correctionFieldPath(target),
-            // Always the currently *displayed* value (guide section 10) — the
-            // backend rejects the write with 409 STALE_CORRECTION if it moved.
+            // Prevents overwriting a correction made after this screen loaded.
             expected_old_value: currentValue ?? null,
             new_value: newValue.trim(),
           },
@@ -718,8 +768,7 @@ function CorrectionForm({
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
       if (cause instanceof ApiError && cause.code === "STALE_CORRECTION") {
-        // Refetch so the comparison below shows the *new* server value while
-        // the operator's proposed value stays in the input (guide section 10).
+        // Keep the proposed value while refreshing the current saved value.
         setStale(true);
         setError(cause);
         try {
@@ -805,8 +854,8 @@ function CorrectionForm({
               className="h-9 w-full rounded-control border border-border-strong bg-surface px-3 text-[13px] text-ink"
             >
               <option value="">Seçin…</option>
-              <option value="SOLE">Münferit (SOLE)</option>
-              <option value="JOINT">Müşterek (JOINT)</option>
+              <option value="SOLE">Münferit</option>
+              <option value="JOINT">Müşterek</option>
             </select>
           ) : (
             <Input
@@ -880,7 +929,7 @@ function CorrectionForm({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Decision controls — usability filter over a backend-enforced matrix        */
+/* Decision controls                                                          */
 /* -------------------------------------------------------------------------- */
 
 type DecisionPending = "approve" | "override" | "request_document" | "escalate" | null;

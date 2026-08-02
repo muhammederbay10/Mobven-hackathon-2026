@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile, status
 from sqlmodel import Session
 
 from api.config import Settings, get_settings
@@ -83,15 +83,20 @@ def get_application(
 async def analyze_application(
     application_id: int,
     request: Request,
+    response: Response,
     session: Annotated[Session, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ApplicationAggregate:
-    return await analysis_service.analyze_application(
+    outcome = await analysis_service.analyze_application_with_metadata(
         session,
         application_id,
         correlation_id=request.state.correlation_id,
         settings=settings,
     )
+    response.headers["X-Extraction-Cache"] = (
+        "hit" if outcome.extraction_cache_hit else "miss"
+    )
+    return outcome.aggregate
 
 
 @router.patch("/{application_id}/extraction", response_model=ApplicationAggregate)

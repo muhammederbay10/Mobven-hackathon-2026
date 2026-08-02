@@ -18,6 +18,7 @@ import { isTerminalStatus } from "@/lib/branch";
 import { clearNavigationState } from "@/lib/clientState";
 import {
   APPLICATION_STATUS_LABEL,
+  formatActor,
   formatInstant,
   ONBOARDING_VERDICT_LABEL,
   ONBOARDING_VERDICT_STATUS,
@@ -39,25 +40,10 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { StatusBadge, StatusIcon } from "@/components/Status";
 import { Button } from "@/components/UI";
 
-/**
- * `/` — the starq.dev banking operations dashboard.
- *
- * Everything numeric on this page is read from the bank API — the audit trail,
- * per-application aggregates, the registry and per-company authority records.
- * There is no list-applications endpoint, so the working set is derived from
- * recent APPLICATION audit entries and each aggregate is fetched individually;
- * when nothing exists yet the cards honestly show zero. Nothing here computes
- * a verdict or invents production data.
- *
- * The demo scenario loader is intentionally demoted to a collapsed utility
- * section at the bottom — its backend functionality is unchanged.
- */
-
-/* How many recent applications to hydrate for the table and counters. */
+/** starq.dev banking operations dashboard. */
 const MAX_APPLICATIONS = 8;
 const MAX_ACTIVITY = 8;
 
-/** Display tone per backend status — presentation only, never a decision. */
 const STATUS_TONE: Record<ApplicationStatus, CheckStatus> = {
   DRAFT: "amber",
   IDENTITY_VERIFIED: "amber",
@@ -70,7 +56,6 @@ const STATUS_TONE: Record<ApplicationStatus, CheckStatus> = {
   ESCALATED: "red",
 };
 
-/** Audit actions surfaced in "Son işlemler", with Turkish labels and tones. */
 const ACTIVITY_PRESENTATION: Record<
   string,
   { label: string; tone: CheckStatus }
@@ -380,7 +365,7 @@ function ActivityPanel({ activity }: { activity: AuditItem[] }) {
                       </span>
                     ) : null}
                   </div>
-                  <div className="text-[11px] text-ink-muted">{item.actor}</div>
+                  <div className="text-[11px] text-ink-muted">{formatActor(item.actor)}</div>
                 </div>
                 <span className="flex-none text-[11px] text-ink-muted">
                   {formatInstant(item.created_at)}
@@ -453,7 +438,7 @@ function QuickActionsCard() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Demo tools — demoted from the primary view, functionality unchanged        */
+/* Demo tools                                                                 */
 /* -------------------------------------------------------------------------- */
 
 type DemoLoadState =
@@ -510,35 +495,6 @@ function DemoToolsSection({ onMutated }: { onMutated: () => void }) {
     [router],
   );
 
-  // Keyboard shortcuts 1-4 stay scoped to the expanded demo section so number
-  // keys never hijack the professional dashboard by surprise.
-  useEffect(() => {
-    if (!open) return;
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.altKey || event.ctrlKey || event.metaKey) return;
-      const target = event.target as HTMLElement | null;
-      if (target) {
-        const tag = target.tagName;
-        if (
-          tag === "INPUT" ||
-          tag === "TEXTAREA" ||
-          tag === "SELECT" ||
-          tag === "BUTTON" ||
-          target.isContentEditable
-        ) {
-          return;
-        }
-      }
-      const caseNumber = Number(event.key);
-      if (!cases || !Number.isInteger(caseNumber)) return;
-      if (!cases.some((demoCase) => demoCase.case === caseNumber)) return;
-      if (loadState.kind === "pending") return;
-      void handleLoadCase(caseNumber);
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, cases, loadState, handleLoadCase]);
-
   async function handleReset() {
     setResetState("pending");
     try {
@@ -569,8 +525,7 @@ function DemoToolsSection({ onMutated }: { onMutated: () => void }) {
         <Panel className="mt-2.5">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <p className="text-[12px] text-ink-muted">
-              Hazır senaryolar gerçek, kalıcı başvurular oluşturur; sonuçları
-              her zaman sunucu belirler. Klavyeden 1–4 ile de yüklenebilir.
+              Hazır senaryolardan birini seçerek örnek bir başvuru süreci başlatabilirsiniz.
             </p>
             <Button
               type="button"
@@ -622,16 +577,15 @@ function DemoToolsSection({ onMutated }: { onMutated: () => void }) {
                       type="button"
                       onClick={() => handleLoadCase(demoCase.case)}
                       disabled={loadState.kind === "pending"}
-                      aria-keyshortcuts={String(demoCase.case)}
                       className="flex h-full flex-col rounded-card border border-border bg-surface p-3 text-left transition-colors hover:border-border-strong hover:bg-surface-hover disabled:pointer-events-none disabled:opacity-50"
                     >
                       <span className="flex w-full items-center justify-between gap-2">
                         <span className="truncate text-[12.5px] font-semibold text-ink">
                           {demoCase.title}
                         </span>
-                        <kbd className="flex-none rounded-md border border-border bg-surface-subtle px-1.5 py-px font-mono text-[10px] text-ink-muted">
-                          {demoCase.case}
-                        </kbd>
+                        <span className="flex-none rounded-pill border border-border bg-surface-subtle px-2 py-0.5 text-[10.5px] text-ink-muted">
+                          Senaryo {demoCase.case}
+                        </span>
                       </span>
                       <span className="mt-1 block text-[11.5px] leading-4 text-ink-secondary">
                         {demoCase.description}

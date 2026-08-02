@@ -18,12 +18,7 @@ import { CreateStep } from "./CreateStep";
 import { ReviewStep } from "./ReviewStep";
 import { UploadStep } from "./UploadStep";
 
-/**
- * The `/branch` state machine. Backend state is authoritative (guide section
- * 9): the stepper, the visible step and every transition are driven by the
- * aggregate returned from `GET /api/applications/{id}` or by the aggregate a
- * mutation returned — never by a local animation or timer.
- */
+/** Coordinates the branch application steps from the current application state. */
 
 const STEPS = [
   { n: 1 as const, label: "Başvuru ve kimlik" },
@@ -80,9 +75,7 @@ export function BranchClient() {
     return () => abortRef.current?.abort();
   }, [applicationId, load]);
 
-  // ANALYSIS_IN_PROGRESS / refresh mid-analysis: poll conservatively while the
-  // server says ANALYZING (guide section 11). The poll only refetches; it never
-  // advances anything locally.
+  // Poll during analysis without advancing the workflow locally.
   const status = state.kind === "ready" ? state.aggregate.application.status : null;
   useEffect(() => {
     if (status !== "ANALYZING" || applicationId === null) return;
@@ -98,7 +91,6 @@ export function BranchClient() {
     }
   }, [applicationId, state]);
 
-  /** Every mutation renders the aggregate the server returned (guide §9). */
   const handleAggregate = useCallback((aggregate: ApplicationAggregate) => {
     setState({ kind: "ready", aggregate });
   }, []);
@@ -211,7 +203,7 @@ export function BranchClient() {
             }}
           />
         ) : state.kind === "loading" || state.kind === "idle" ? (
-          <LoadingState label="Başvuru sunucudan yükleniyor…" />
+          <LoadingState label="Başvuru bilgileri yükleniyor…" />
         ) : state.kind === "error" ? (
           <ErrorState
             error={state.error}
@@ -246,8 +238,6 @@ function BranchBody({
 
   switch (application.status) {
     case "DRAFT":
-      // The backend has no endpoint to attest identity after creation (guide
-      // section 9) — show the record honestly and offer a corrected restart.
       return (
         <div className="p-4">
           <Card className="max-w-xl">
