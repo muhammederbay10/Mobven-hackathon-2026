@@ -34,7 +34,7 @@ def page_map(payload: dict) -> PageMap:
     return PageMap.model_validate(payload)
 
 
-def test_nine_page_map_produces_the_documented_seven_chunks() -> None:
+def test_nine_page_map_produces_one_three_page_rule_window() -> None:
     source = FIXTURES / "nine_page.json"
     mapped = PageMap.model_validate_json(source.read_text(encoding="utf-8"))
 
@@ -42,8 +42,7 @@ def test_nine_page_map_produces_the_documented_seven_chunks() -> None:
 
     assert [(chunk.agent, chunk.pages) for chunk in chunks] == [
         ("appointments", [1, 2]),
-        ("rules", [3, 4]),
-        ("rules", [4, 5]),
+        ("rules", [3, 4, 5]),
         ("specimens", [6]),
         ("specimens", [7]),
         ("specimens", [8]),
@@ -51,14 +50,13 @@ def test_nine_page_map_produces_the_documented_seven_chunks() -> None:
     ]
     assert [chunk.chunk_id for chunk in chunks] == [
         "appointments_p1-2",
-        "rules_p3-4",
-        "rules_p4-5",
+        "rules_p3-5",
         "specimens_p6",
         "specimens_p7",
         "specimens_p8",
         "annex_p9",
     ]
-    assert [chunk.supporting_only for chunk in chunks] == [False] * 6 + [True]
+    assert [chunk.supporting_only for chunk in chunks] == [False] * 5 + [True]
 
 
 def test_rule_windows_overlap_by_exactly_one_page() -> None:
@@ -66,14 +64,14 @@ def test_rule_windows_overlap_by_exactly_one_page() -> None:
         {
             "pages": [
                 {"page": number, "labels": ["rules"]}
-                for number in range(1, 5)
+                for number in range(1, 8)
             ]
         }
     )
 
-    chunks = build_chunks(mapped, pages(4))
+    chunks = build_chunks(mapped, pages(7))
 
-    assert [chunk.pages for chunk in chunks] == [[1, 2], [2, 3], [3, 4]]
+    assert [chunk.pages for chunk in chunks] == [[1, 2, 3, 4], [4, 5, 6, 7]]
     assert all(
         len(set(left.pages) & set(right.pages)) == 1
         for left, right in zip(chunks, chunks[1:])
@@ -132,7 +130,7 @@ def test_single_page_short_form_is_sent_to_each_relevant_extractor() -> None:
     assert all("Page numbers below are absolute." in chunk.context_header for chunk in chunks)
 
 
-def test_page_level_continuation_does_not_guess_the_next_pages_section() -> None:
+def test_rule_continuation_is_read_as_rules_and_still_sent_to_review() -> None:
     mapped = page_map(
         {
             "pages": [
@@ -145,12 +143,12 @@ def test_page_level_continuation_does_not_guess_the_next_pages_section() -> None
     chunks = build_chunks(mapped, pages(2))
 
     assert [(chunk.agent, chunk.pages) for chunk in chunks] == [
-        ("rules", [1]),
+        ("rules", [1, 2]),
         ("review", [2]),
     ]
 
 
-def test_mixed_page_continuation_does_not_expand_appointments_or_bridge_rules() -> None:
+def test_mixed_page_continuation_bridges_a_missed_rule_label() -> None:
     mapped = page_map(
         {
             "pages": [
@@ -187,11 +185,44 @@ def test_mixed_page_continuation_does_not_expand_appointments_or_bridge_rules() 
 
     assert [(chunk.agent, chunk.pages) for chunk in chunks] == [
         ("appointments", [1, 2]),
-        ("rules", [1]),
-        ("rules", [3, 4]),
+        ("rules", [1, 2, 3, 4]),
         ("rules", [4, 5]),
         ("annex", [2, 3, 4, 5]),
     ]
+
+
+def test_rule_section_expands_back_through_a_continuation_chain() -> None:
+    mapped = page_map(
+        {
+            "pages": [
+                {"page": 1, "labels": ["appointments"], "continues_on_next": True},
+                {"page": 2, "labels": ["ic_yonerge_annex"], "continues_on_next": True},
+                {"page": 3, "labels": ["rules"], "continues_on_next": False},
+            ]
+        }
+    )
+
+    chunks = build_chunks(mapped, pages(3))
+
+    assert [chunk.pages for chunk in chunks if chunk.agent == "rules"] == [
+        [1, 2, 3],
+    ]
+
+
+def test_rule_continuation_stops_at_a_specimen_only_page() -> None:
+    mapped = page_map(
+        {
+            "pages": [
+                {"page": 1, "labels": ["rules"], "continues_on_next": True},
+                {"page": 2, "labels": ["specimens"], "continues_on_next": True},
+                {"page": 3, "labels": ["specimens"], "continues_on_next": False},
+            ]
+        }
+    )
+
+    chunks = build_chunks(mapped, pages(3))
+
+    assert [chunk.pages for chunk in chunks if chunk.agent == "rules"] == [[1]]
 
 
 def test_unknown_pages_go_to_review_and_blank_only_pages_are_skipped() -> None:
@@ -260,15 +291,19 @@ def test_context_uses_the_full_rules_span_for_each_window() -> None:
                 {"page": 1, "labels": ["rules"]},
                 {"page": 2, "labels": ["rules"]},
                 {"page": 3, "labels": ["rules"]},
+                {"page": 4, "labels": ["rules"]},
+                {"page": 5, "labels": ["rules"]},
             ],
         }
     )
 
-    chunks = build_chunks(mapped, pages(3))
+    chunks = build_chunks(mapped, pages(5))
 
-    assert "covers pages 1-2" in chunks[0].context_header
-    assert "covers pages 2-3" in chunks[1].context_header
-    assert all("rules section spanning pages 1-3" in chunk.context_header for chunk in chunks)
+    assert "covers pages 1-4" in chunks[0].context_header
+    assert "covers pages 4-5" in chunks[1].context_header
+    assert "begin on pages 1-3" in chunks[0].context_header
+    assert "pages 4 are continuation context only" in chunks[0].context_header
+    assert all("rules section spanning pages 1-5" in chunk.context_header for chunk in chunks)
     assert all("A grubu; B grubu" in chunk.context_header for chunk in chunks)
 
 
@@ -295,8 +330,8 @@ def test_diagnostic_prints_chunk_identity_pages_and_support_flag(
 
     output = capsys.readouterr().out
     assert exit_code == 0
-    assert "chunks      7" in output
-    assert "rules_p3-4" in output
+    assert "chunks      6" in output
+    assert "rules_p3-5" in output
     assert "annex_p9" in output
     assert "supporting" in output
 

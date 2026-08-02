@@ -33,6 +33,35 @@ _NON_WORD = re.compile(r"[^0-9a-z]+")
 _RAW_MASKED_ID = re.compile(r"(\d{3})\*+(\d{2})")
 _CANONICAL_MASK = "******"
 
+_GROUP_NOISE = frozenset(
+    {
+        "grup",
+        "grubu",
+        "derece",
+        "derecesi",
+        "imza",
+        "yetkili",
+        "yetkilisi",
+        "yetkilileri",
+    }
+)
+_GROUP_ORDINALS = MappingProxyType(
+    {
+        "birinci": "1",
+        "ikinci": "2",
+        "ucuncu": "3",
+        "dorduncu": "4",
+        "besinci": "5",
+        "altinci": "6",
+        "i": "1",
+        "ii": "2",
+        "iii": "3",
+        "iv": "4",
+        "v": "5",
+        "vi": "6",
+    }
+)
+
 # Legal-form tokens, in normalized form, matched only as trailing token runs. Turkish company
 # forms are a closed set defined by the TTK, which is why a table beats a judgment here.
 _COMPANY_SUFFIXES: tuple[tuple[str, ...], ...] = (
@@ -177,6 +206,17 @@ def canonicalize_masked_id(value: str | None) -> str | None:
     if not match:
         return None
     return f"{match[1]}{_CANONICAL_MASK}{match[2]}"
+
+
+def canonicalize_group_code(value: str | None) -> str:
+    """Normalizes equivalent Turkish signature group and degree references for joins only."""
+
+    tokens = [
+        token for token in tr_normalize(value or "").split() if token not in _GROUP_NOISE
+    ]
+    if len(tokens) == 1:
+        return _GROUP_ORDINALS.get(tokens[0], tokens[0])
+    return " ".join(tokens)
 
 
 def parse_tr_date(text: str) -> Date:

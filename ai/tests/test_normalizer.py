@@ -231,6 +231,54 @@ def test_rules_on_mixed_rule_and_annex_pages_remain_primary_authority() -> None:
     assert normalized.rules[0].source is RuleSource.CIRCULAR
 
 
+def test_similar_tier_wording_does_not_dedupe_distinct_amount_ranges() -> None:
+    first = raw_rule(
+        "Şirkete ilişkin 1.000.000 ABD Doları üzerindeki işlemlerde A ve B müştereken imzalar."
+    ).model_copy(update={"amount_min": 100000001, "amount_max": None})
+    second = raw_rule(
+        "Şirkete ilişkin 500.000 ile 1.000.000 ABD Doları arasındaki işlemlerde A ve B müştereken imzalar."
+    ).model_copy(update={"amount_min": 50000001, "amount_max": 100000000})
+    chunks = [
+        result(
+            "rules_p2",
+            ExtractorAgent.RULES,
+            RulesAgentOutput(rules=[first, second]),
+        )
+    ]
+
+    normalized = normalize_extraction("doc-tiers", page_map(), chunks, fuzzy_threshold=90)
+
+    assert len(normalized.rules) == 2
+    assert {(rule.amount_min, rule.amount_max) for rule in normalized.rules} == {
+        (100000001, None),
+        (50000001, 100000000),
+    }
+
+
+def test_overlapping_reads_merge_joint_party_order_and_scope_variants() -> None:
+    quote = "A ve B grupları kredi ve bankacılık işlemlerinde müştereken imzalar."
+    first = raw_rule(quote).model_copy(
+        update={"scope_tags": ["credit"], "scope_text": "kredi işlemleri"}
+    )
+    second = raw_rule(
+        quote,
+        who=RawRuleParty(type=RulePartyType.GROUP, ref="B Grubu"),
+        joint_with=[RawRuleParty(type=RulePartyType.GROUP, ref="A grubu")],
+    ).model_copy(
+        update={"scope_tags": ["banking_ops"], "scope_text": "kredi ve bankacılık işlemleri"}
+    )
+    chunks = [
+        result("rules_p1-3", ExtractorAgent.RULES, RulesAgentOutput(rules=[first])),
+        result("rules_p3-5", ExtractorAgent.RULES, RulesAgentOutput(rules=[second])),
+    ]
+
+    normalized = normalize_extraction("doc-overlap", page_map(), chunks)
+
+    assert len(normalized.rules) == 1
+    assert normalized.rules[0].scope_tags == ["credit", "banking_ops"]
+    assert normalized.rules[0].scope_text == "kredi ve bankacılık işlemleri"
+
+
 def test_rules_on_annex_only_pages_remain_supporting_material() -> None:
     annex_map = page_map().model_copy(
         update={

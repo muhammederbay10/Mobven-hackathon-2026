@@ -519,10 +519,10 @@ class ExtractionRule(StrictModel):
     by the authority engine, which must resolve signers by stable ID rather than by fragile,
     Turkish-casing-sensitive name strings. (Representative.coSigners is the opposite case: it
     stays names, because compare.py reads it to print a human-readable Turkish check reason.)
-    `blocked` represents a scope the circular explicitly excludes — e.g. real estate transactions
-    requiring a separate board decision — where no signing mode exists under this document at all.
-    A blocked rule carries `mode: null` and empty `coSigners`; the exclusion clause is still real
-    evidence and must not be silently dropped just because no representative can act on it.
+    `blocked` represents either a scope the circular explicitly excludes or a clause that cannot
+    be executed safely because a required party did not resolve to the roster. A blocked rule
+    carries `mode: null` and empty `coSigners`; its evidence remains visible for human review
+    instead of being silently dropped.
     """
 
     scope: str

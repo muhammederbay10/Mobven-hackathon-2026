@@ -9,6 +9,7 @@ import pytest
 
 from ai.schema import MaskedNationalId
 from ai.turkish import (
+    canonicalize_group_code,
     canonicalize_masked_id,
     company_equal,
     digits_only,
@@ -42,6 +43,20 @@ def test_python_casefold_is_the_reason_this_module_exists() -> None:
     assert "ALİ YILMAZ".lower() != "Ali Yılmaz".lower()
 
     assert tr_normalize("ALİ YILMAZ") == tr_normalize("Ali Yılmaz") == "ali yilmaz"
+
+
+@pytest.mark.parametrize(
+    ("printed", "expected"),
+    [
+        ("A Grubu İmza Yetkilileri", "a"),
+        ("I. Derece", "1"),
+        ("1. derece imza yetkilisi", "1"),
+        ("Birinci Derece", "1"),
+        ("VI. Derece Yetkilileri", "6"),
+    ],
+)
+def test_signature_group_aliases_have_one_join_key(printed: str, expected: str) -> None:
+    assert canonicalize_group_code(printed) == expected
 
 
 def test_tr_lower_and_tr_upper_keep_the_two_letter_i_forms_apart() -> None:

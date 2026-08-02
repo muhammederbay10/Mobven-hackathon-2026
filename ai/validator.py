@@ -25,7 +25,13 @@ if __package__:
         RulesAgentOutput,
         ValidationOutcome,
     )
-    from .turkish import canonicalize_masked_id, name_equal, parse_tr_date, tr_normalize
+    from .turkish import (
+        canonicalize_group_code,
+        canonicalize_masked_id,
+        name_equal,
+        parse_tr_date,
+        tr_normalize,
+    )
 else:  # scripts may import this module from inside ai/
     from schema import (
         ChunkExtractionResult,
@@ -41,7 +47,13 @@ else:  # scripts may import this module from inside ai/
         RulesAgentOutput,
         ValidationOutcome,
     )
-    from turkish import canonicalize_masked_id, name_equal, parse_tr_date, tr_normalize
+    from turkish import (
+        canonicalize_group_code,
+        canonicalize_masked_id,
+        name_equal,
+        parse_tr_date,
+        tr_normalize,
+    )
 
 
 DEFAULT_FUZZ_THRESHOLD = 90
@@ -60,12 +72,13 @@ _CHECK_ORDER = {
     "validity_missing_or_conflict": 2,
     "model_disagreement": 3,
     "quote_cross_check": 4,
-    "structure_sanity": 5,
-    "chunk_failed": 6,
-    "partial_clause": 7,
-    "other_unknown": 8,
-    "annex_only_rule": 9,
-    "validator_internal_error": 10,
+    "rule_completeness": 5,
+    "structure_sanity": 6,
+    "chunk_failed": 7,
+    "partial_clause": 8,
+    "other_unknown": 9,
+    "annex_only_rule": 10,
+    "validator_internal_error": 11,
 }
 
 
@@ -85,6 +98,7 @@ def validate_extraction(
         ("validity_missing_or_conflict", _check_validity),
         ("model_disagreement", _check_model_disagreement),
         ("quote_cross_check", _check_quotes),
+        ("rule_completeness", _check_rule_completeness),
         ("structure_sanity", _check_structure),
         ("pipeline_incidents", _check_pipeline_incidents),
     ]
@@ -190,7 +204,31 @@ def _check_id_checksums(
                         )
                     )
                 continue
-            if not _TCKN.fullmatch(value) or not is_valid_tckn(value):
+            if tr_normalize(value) == "unreadable":
+                flags.append(
+                    _flag(
+                        FlagSeverity.WARN,
+                        "id_checksum",
+                        "Kimlik alanı belgede okunamadı veya boş bırakıldı.",
+                        field_path,
+                        "IDENTITY_UNREADABLE",
+                        appointment.evidence.page,
+                    )
+                )
+                continue
+            if not _TCKN.fullmatch(value):
+                flags.append(
+                    _flag(
+                        FlagSeverity.WARN,
+                        "id_checksum",
+                        "Kimlik türü belirlenemedi; değer T.C. kimlik numarası olarak doğrulanmadı.",
+                        field_path,
+                        "IDENTITY_TYPE_UNKNOWN",
+                        appointment.evidence.page,
+                    )
+                )
+                continue
+            if not is_valid_tckn(value):
                 flags.append(
                     _flag(
                         FlagSeverity.SERIOUS,
@@ -228,7 +266,7 @@ def _check_unresolved_references(
                 )
 
     known_groups = {
-        tr_normalize(item.group_code)
+        canonicalize_group_code(item.group_code)
         for item in extraction.signatories
         if item.group_code
     }
@@ -238,7 +276,7 @@ def _check_unresolved_references(
                 name_equal(printed_name, candidate.name_printed)
                 for candidate in extraction.signatories
             )
-            if resolved_person or tr_normalize(printed_name) in known_groups:
+            if resolved_person or canonicalize_group_code(printed_name) in known_groups:
                 continue
             flags.append(
                 _flag(
@@ -354,6 +392,58 @@ def _check_quotes(
                     rule.evidence.page,
                 )
             )
+    return flags
+
+
+def _check_rule_completeness(
+    extraction: CircularExtraction, threshold: int
+) -> list[ProvenanceFlag]:
+    del threshold
+    flags: list[ProvenanceFlag] = []
+    explicit_rule_pages = {
+        page.page
+        for page in extraction.page_map.pages
+        if PageLabel.RULES in page.labels
+    }
+    authoritative = [
+        rule
+        for rule in extraction.rules
+        if rule.source in {RuleSource.CIRCULAR, RuleSource.DIRECTIVE}
+    ]
+    if explicit_rule_pages and not authoritative:
+        flags.append(
+            _flag(
+                FlagSeverity.SERIOUS,
+                "rule_completeness",
+                "Yetki kuralları olarak sınıflandırılan sayfalardan uygulanabilir kural çıkarılamadı.",
+                "rules",
+                "RULES_SECTION_EMPTY",
+                min(explicit_rule_pages),
+            )
+        )
+
+    for raw_index, result in _raw_results(extraction):
+        if (
+            result.status is not ExtractorStatus.SUCCESS
+            or result.agent is not ExtractorAgent.RULES
+            or result.role is not ExtractorRole.PRIMARY
+            or not isinstance(result.output, RulesAgentOutput)
+            or result.output.rules
+        ):
+            continue
+        chunk_pages = _chunk_page_numbers(result.chunk_id)
+        if not explicit_rule_pages.intersection(chunk_pages):
+            continue
+        flags.append(
+            _flag(
+                FlagSeverity.SERIOUS,
+                "rule_completeness",
+                "Yetki sayfasını içeren birincil parça hiçbir kural döndürmedi.",
+                f"raw_chunks[{raw_index}].output.rules",
+                "RULE_CHUNK_EMPTY",
+                min(explicit_rule_pages.intersection(chunk_pages)),
+            )
+        )
     return flags
 
 
@@ -542,6 +632,19 @@ def _raw_results(
         except Exception:
             continue
     return parsed
+
+
+def _chunk_page_numbers(chunk_id: str) -> set[int]:
+    try:
+        token = chunk_id.rsplit("_p", 1)[1]
+        if "+" in token:
+            return {int(item) for item in token.split("+")}
+        if "-" in token:
+            first, last = (int(item) for item in token.split("-", 1))
+            return set(range(first, last + 1))
+        return {int(token)}
+    except (IndexError, ValueError):
+        return set()
 
 
 def _rule_result_pairs(

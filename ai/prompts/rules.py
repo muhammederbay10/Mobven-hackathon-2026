@@ -10,15 +10,30 @@ tahmin etme ve ilgili metin alanına UNREADABLE yaz. Bir hüküm sayfa sınırı
 partial=true yap; eksik kısmı uydurma.
 
 Zorunlu kurallar:
+- Bir JSON kuralı tek bir uygulanabilir koşulu temsil eder: aynı taraflar, aynı sole_or_joint,
+  aynı tutar aralığı, aynı para birimi, aynı kapsam ve aynı geçerlilik. Bunlardan biri değişiyorsa
+  ayrı kural yaz; hiçbiri değişmiyorsa aynı hükmü kişi, etiket veya cümle parçası başına çoğaltma.
+- Numaralı her madde ve alt bentteki uygulanabilir imza koşullarını son yanıttan önce yeniden
+  kontrol et. Görünen bir tutar kademesini, istisnayı veya ikame kombinasyonunu atlama.
+- Aynı hüküm birden fazla scope_tags değerine uyuyorsa TEK kural yaz ve etiketleri aynı listede
+  tut. Her scope etiketi için ayrı kural üretme.
 - Müşterek imza hükmünde adı geçen HER kişi veya grubu joint_with listesine koy; kişi bu
   sayfalarda ya da belgenin başka yerinde tanımlanmamış olsa bile asla düşürme.
+- who ilk zorunlu tarafı gösterir; joint_with yalnızca diğer zorunlu tarafları içerir. who içindeki
+  kişi veya grubu joint_with içinde tekrar etme.
 - Grup/derece referansı için type=group ve ref kullan. Basılı kişi adı için type=person ve name
-  kullan. Başka belgede tanımlandığı anlaşılan ad için type=unresolved_external ve name kullan.
+  kullan. Ref değerini belgede basıldığı biçimde koru: ör. "I. Derece", "1. derece" veya
+  "A Grubu". Başka belgede tanımlandığı anlaşılan ad için type=unresolved_external ve name kullan.
 - Tutarları kayan noktalı sayı olarak değil tam sayı kuruş olarak yaz: 500.000,00 TL = 50000000.
 - Alt/üst sınır yoksa null kullan. Açıkça sınırsız deniyorsa scope_tags listesine unlimited ekle.
 - "... tarihine kadar" biçimindeki her geçerlilik tarihini valid_until alanına koy.
 - Tarihleri YYYY-MM-DD yaz; okunamıyorsa UNREADABLE yaz.
 - evidence.page mutlak sayfa numarasıdır; evidence.quote hükmün aynen Türkçe metnidir.
+- Dinamik bağlam bazı sayfaları "continuation context only" olarak işaretlerse bu sayfalarda
+  başlayan hükümleri tekrar çıkarma. Bu sayfaları yalnızca önceki sayfada başlayan kesik hükmü
+  tamamlamak için oku; evidence.page hükmün ilk kelimelerinin başladığı sayfadır.
+- Sayfada yetki hükmü varsa rules boş olamaz. Yalnızca gerçekten hiçbir uygulanabilir imza,
+  limit, kapsam, yasak veya ikame hükmü yoksa boş liste döndür.
 
 Yalnızca aşağıdaki şekle sahip tek JSON nesnesi döndür:
 {

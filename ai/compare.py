@@ -321,7 +321,8 @@ def _registry_status(context: _Context) -> CheckItem:
     company = context.registry_company
     mersis = context.application.mersis
     evidence = {
-        "Sicil kaydı": mersis,
+        "Aranan MERSİS": mersis,
+        "Sicil sonucu": "Kayıt bulundu" if company else "Kayıt bulunamadı",
         "Durum": company.status if company else None,
         "Kaynak": REGISTRY_SOURCE,
     }

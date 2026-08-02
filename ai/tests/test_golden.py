@@ -177,6 +177,18 @@ def test_an_unknown_company_is_a_registry_conflict() -> None:
     assert statuses(report)[CheckId.REGISTRY_STATUS] is CheckStatus.RED
 
 
+def test_missing_registry_evidence_distinguishes_query_from_result() -> None:
+    payload = build_payload(1)
+    payload["registry"] = {}
+
+    report = analyze(AnalyzeRequest.model_validate(payload))
+    registry = next(check for check in report.checks if check.id is CheckId.REGISTRY_STATUS)
+
+    assert registry.evidence["Aranan MERSİS"] == payload["application"]["mersis"]
+    assert registry.evidence["Sicil sonucu"] == "Kayıt bulunamadı"
+    assert "Sicil kaydı" not in registry.evidence
+
+
 def test_analysis_does_not_mutate_its_input() -> None:
     request = build_request(1)
     before = deepcopy(request.model_dump(mode="json"))

@@ -76,8 +76,19 @@ async def _run(args: argparse.Namespace) -> int:
             f"  {timing.stage:<10} {timing.seconds:>8.3f}s "
             f"{timing.status.value}{detail}"
         )
-    print("\nOK" if not outcome.degraded else "\nDEGRADED — review the reported fields")
+    print(f"\n{_completion_message(outcome.degraded, severity)}")
     return 1 if outcome.degraded else 0
+
+
+def _completion_message(
+    degraded: bool,
+    severity: Counter[FlagSeverity],
+) -> str:
+    if degraded:
+        return "DEGRADED — review the reported fields"
+    if severity[FlagSeverity.SERIOUS] or severity[FlagSeverity.WARN]:
+        return "COMPLETED — REVIEW REQUIRED"
+    return "OK"
 
 
 def main(argv: list[str] | None = None) -> int:

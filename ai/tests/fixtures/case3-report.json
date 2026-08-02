@@ -66,7 +66,8 @@
       "title": "Sicil durumu",
       "reason": "Şirket sicilde faal görünüyor.",
       "evidence": {
-        "Sicil kaydı": "0456789012000011",
+        "Aranan MERSİS": "0456789012000011",
+        "Sicil sonucu": "Kayıt bulundu",
         "Durum": "ACTIVE",
         "Kaynak": "simüle MERSİS"
       }

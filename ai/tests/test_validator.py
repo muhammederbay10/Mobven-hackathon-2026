@@ -219,6 +219,45 @@ def test_nonstandard_mask_is_a_review_warning_instead_of_invalid_tckn() -> None:
     assert flag.severity is FlagSeverity.WARN
 
 
+def test_unreadable_and_non_tckn_identifiers_are_reviewed_without_false_checksum_flags() -> None:
+    appointment_raw = {
+        "chunk_id": "appointments_p1",
+        "agent": "appointments",
+        "role": "primary",
+        "status": "success",
+        "model": "offline-test",
+        "attempts": 1,
+        "output": {
+            "company": {"legal_name": "ACME", "evidence": []},
+            "appointments": [
+                {
+                    "name_printed": "ALİ YILMAZ",
+                    "id_no_masked": "UNREADABLE",
+                    "evidence": {"page": 1, "quote": "Kimlik alanı boş"},
+                },
+                {
+                    "name_printed": "JANE DOE",
+                    "id_no_masked": "AT6418688",
+                    "evidence": {"page": 1, "quote": "Passport No: AT6418688"},
+                },
+            ],
+            "references": [],
+        },
+    }
+
+    outcome = validate_extraction(extraction(raw_chunks=[appointment_raw]))
+
+    assert "IDENTITY_UNREADABLE" in codes(outcome)
+    assert "IDENTITY_TYPE_UNKNOWN" in codes(outcome)
+    assert "INVALID_TCKN" not in codes(outcome)
+    identity_flags = [
+        flag
+        for flag in outcome.flags
+        if flag.anomaly_code in {"IDENTITY_UNREADABLE", "IDENTITY_TYPE_UNKNOWN"}
+    ]
+    assert all(flag.severity is FlagSeverity.WARN for flag in identity_flags)
+
+
 def test_tolga_and_dropped_12122023_date_remain_visible() -> None:
     unresolved = rule(
         who=RulePartyRef(
@@ -273,6 +312,23 @@ def test_witness_disagreement_and_unmatched_quote_are_field_level_flags() -> Non
     assert any(path.endswith("sole_or_joint") for path in disagreement_paths)
     assert any(path.endswith("joint_with") for path in disagreement_paths)
     assert "QUOTE_NOT_CORROBORATED" in codes(outcome)
+
+
+def test_empty_primary_rule_chunk_is_a_serious_completeness_failure() -> None:
+    empty_primary = raw_result(ExtractorRole.PRIMARY, [])
+
+    outcome = validate_extraction(
+        extraction(rules=[], raw_chunks=[empty_primary])
+    )
+
+    assert "RULES_SECTION_EMPTY" in codes(outcome)
+    assert "RULE_CHUNK_EMPTY" in codes(outcome)
+    completeness = [
+        flag
+        for flag in outcome.flags
+        if flag.anomaly_code in {"RULES_SECTION_EMPTY", "RULE_CHUNK_EMPTY"}
+    ]
+    assert all(flag.severity is FlagSeverity.SERIOUS for flag in completeness)
 
 
 def test_structure_and_pipeline_incidents_are_all_annotations() -> None:

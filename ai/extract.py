@@ -49,7 +49,7 @@ if __package__:
         ValidationOutcome,
     )
     from .sorter import SorterOutcome, classify_pages
-    from .turkish import tr_normalize
+    from .turkish import canonicalize_group_code, tr_normalize
     from .validator import validate_extraction
 else:  # scripts may import this module from inside ai/
     from chunker import Chunk, build_chunks
@@ -86,7 +86,7 @@ else:  # scripts may import this module from inside ai/
         ValidationOutcome,
     )
     from sorter import SorterOutcome, classify_pages
-    from turkish import tr_normalize
+    from turkish import canonicalize_group_code, tr_normalize
     from validator import validate_extraction
 
 
@@ -350,10 +350,9 @@ def project_extraction(
     for index, rule in enumerate(extraction.rules):
         if rule.source is RuleSource.ANNEX:
             continue
-        mapped = _project_rule(rule, extraction, id_map)
-        if mapped is None:
+        mapped, resolution_failed = _project_rule(rule, extraction, id_map)
+        if resolution_failed:
             review_fields.append(f"rules[{index}].joint_with")
-            continue
         flat_rules.extend(mapped)
 
     evidence = _authority_evidence(extraction)
@@ -431,30 +430,39 @@ def _project_rule(
     rule: AuthorityRule,
     extraction: CircularExtraction,
     id_map: dict[str, str],
-) -> list[ExtractionRule] | None:
+) -> tuple[list[ExtractionRule], bool]:
     blocked = _is_blocked(rule)
     mode = None if blocked else SignatureMode(rule.sole_or_joint.value.upper())
     co_signers: list[str] = []
+    resolution_failed = False
     if mode is SignatureMode.JOINT:
         resolved = _joint_rule_ids(rule, extraction, id_map)
         if not resolved:
-            return None
-        co_signers = resolved
+            # The flat contract has no unresolved-party shape. Keep the evidence visible but
+            # non-executable until a human resolves the roster join.
+            blocked = True
+            mode = None
+            resolution_failed = True
+        else:
+            co_signers = resolved
 
     scopes = [tag for tag in rule.scope_tags if tag not in _NON_SCOPE_TAGS]
     if not scopes:
         scopes = ["general"]
-    return [
-        ExtractionRule(
-            scope=scope,
-            threshold=rule.amount_max,
-            mode=mode,
-            co_signers=[] if blocked else co_signers,
-            blocked=blocked,
-            evidence=rule.evidence,
-        )
-        for scope in _ordered_unique(scopes)
-    ]
+    return (
+        [
+            ExtractionRule(
+                scope=scope,
+                threshold=rule.amount_max,
+                mode=mode,
+                co_signers=[] if blocked else co_signers,
+                blocked=blocked,
+                evidence=rule.evidence,
+            )
+            for scope in _ordered_unique(scopes)
+        ],
+        resolution_failed,
+    )
 
 
 def _joint_rule_ids(
@@ -479,11 +487,13 @@ def _party_rep_ids(
     if party.type is RulePartyType.PERSON:
         return [id_map[party.ref]] if party.ref in id_map else None
     if party.type is RulePartyType.GROUP:
-        target = tr_normalize(party.ref or "")
+        target = canonicalize_group_code(party.ref)
+        if not target:
+            return None
         matches = [
             id_map[item.id]
             for item in extraction.signatories
-            if item.group_code and tr_normalize(item.group_code) == target
+            if item.group_code and canonicalize_group_code(item.group_code) == target
         ]
         return matches or None
     return None
@@ -494,10 +504,12 @@ def _party_contains(
 ) -> bool:
     if party.type is RulePartyType.PERSON:
         return party.ref == signatory_id
+    target = canonicalize_group_code(party.ref)
     return (
         party.type is RulePartyType.GROUP
         and group_code is not None
-        and tr_normalize(party.ref or "") == tr_normalize(group_code)
+        and bool(target)
+        and target == canonicalize_group_code(group_code)
     )
 
 

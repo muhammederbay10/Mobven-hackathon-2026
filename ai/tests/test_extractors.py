@@ -357,3 +357,5 @@ def test_turkish_prompts_keep_anti_hallucination_requirements() -> None:
     assert "joint_with" in rules.SYSTEM_PROMPT
     assert "valid_until" in rules.SYSTEM_PROMPT
     assert "tam sayı kuruş" in rules.SYSTEM_PROMPT
+    assert "Her scope etiketi için ayrı kural üretme" in rules.SYSTEM_PROMPT
+    assert "rules boş olamaz" in rules.SYSTEM_PROMPT

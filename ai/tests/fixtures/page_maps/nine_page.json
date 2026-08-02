@@ -1,0 +1,53 @@
+{
+  "company_name_line": "ÖRNEK KATILIM BANKASI ANONİM ŞİRKETİ",
+  "structure_hints": [
+    "A ve B imza grupları mevcut"
+  ],
+  "pages": [
+    {
+      "page": 1,
+      "labels": ["identity_header", "dayanak", "appointments"],
+      "continues_on_next": true
+    },
+    {
+      "page": 2,
+      "labels": ["appointments", "notary_block"],
+      "continues_on_next": false
+    },
+    {
+      "page": 3,
+      "labels": ["rules"],
+      "continues_on_next": true
+    },
+    {
+      "page": 4,
+      "labels": ["rules"],
+      "continues_on_next": true
+    },
+    {
+      "page": 5,
+      "labels": ["rules"],
+      "continues_on_next": false
+    },
+    {
+      "page": 6,
+      "labels": ["specimens"],
+      "continues_on_next": false
+    },
+    {
+      "page": 7,
+      "labels": ["specimens"],
+      "continues_on_next": false
+    },
+    {
+      "page": 8,
+      "labels": ["specimens"],
+      "continues_on_next": false
+    },
+    {
+      "page": 9,
+      "labels": ["gazette_annex"],
+      "continues_on_next": false
+    }
+  ]
+}

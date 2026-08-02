@@ -15,7 +15,7 @@ else:  # scripts may import this module from inside ai/
     from schema import PageClassification, PageLabel, PageMap
 
 
-RULE_WINDOW_SIZE = 2
+RULE_WINDOW_SIZE = 4
 ChunkAgent = Literal["appointments", "rules", "specimens", "annex", "review"]
 
 APPOINTMENT_RIDE_ALONG_LABELS = frozenset(
@@ -27,6 +27,14 @@ ANNEX_LABELS = frozenset(
         PageLabel.BOARD_RESOLUTION_ANNEX,
         PageLabel.GAZETTE_ANNEX,
         PageLabel.IMZA_BEYANNAMESI,
+    }
+)
+RULE_CONTINUATION_BLOCKERS = frozenset(
+    {
+        PageLabel.SPECIMENS,
+        PageLabel.GAZETTE_ANNEX,
+        PageLabel.IMZA_BEYANNAMESI,
+        PageLabel.COVER_OR_BLANK,
     }
 )
 
@@ -70,9 +78,11 @@ def build_chunks(page_map: PageMap, rendered_pages: Sequence[PageImages]) -> lis
             )
         )
 
-    rule_pages = _pages_with_label(classifications.values(), PageLabel.RULES)
+    rule_pages = _rule_section_pages(classifications)
     for section_pages in _contiguous_runs(rule_pages):
-        for window in _overlapping_rule_windows(section_pages):
+        windows = _overlapping_rule_windows(section_pages)
+        for index, window in enumerate(windows):
+            focus_pages = window if index == len(windows) - 1 else window[:-1]
             chunks.append(
                 _make_chunk(
                     page_map,
@@ -80,6 +90,7 @@ def build_chunks(page_map: PageMap, rendered_pages: Sequence[PageImages]) -> lis
                     agent="rules",
                     pages=window,
                     section_pages=section_pages,
+                    focus_pages=focus_pages,
                 )
             )
 
@@ -155,12 +166,46 @@ def _pages_with_any_label(
     return [page.page for page in pages if any(label in labels for label in page.labels)]
 
 
+def _rule_section_pages(
+    classifications: dict[int, PageClassification],
+) -> list[int]:
+    """Expands explicit rule labels across continuation chains without swallowing later sections."""
+
+    explicit = set(_pages_with_label(classifications.values(), PageLabel.RULES))
+    expanded = set(explicit)
+    for page_number in explicit:
+        previous = page_number - 1
+        while (
+            previous in classifications
+            and classifications[previous].continues_on_next
+            and _can_extend_rule_section(classifications[previous])
+        ):
+            expanded.add(previous)
+            previous -= 1
+
+        page = classifications[page_number]
+        next_page = classifications.get(page_number + 1)
+        if (
+            page.continues_on_next
+            and next_page is not None
+            and _can_extend_rule_section(next_page)
+        ):
+            expanded.add(page_number + 1)
+    return sorted(expanded)
+
+
+def _can_extend_rule_section(page: PageClassification) -> bool:
+    return PageLabel.RULES in page.labels or not any(
+        label in RULE_CONTINUATION_BLOCKERS for label in page.labels
+    )
+
+
 def _overlapping_rule_windows(page_numbers: Sequence[int]) -> list[list[int]]:
     if len(page_numbers) <= RULE_WINDOW_SIZE:
         return [list(page_numbers)] if page_numbers else []
     return [
         list(page_numbers[index : index + RULE_WINDOW_SIZE])
-        for index in range(len(page_numbers) - 1)
+        for index in range(0, len(page_numbers) - 1, RULE_WINDOW_SIZE - 1)
     ]
 
 
@@ -214,6 +259,7 @@ def _make_chunk(
     agent: ChunkAgent,
     pages: Sequence[int],
     section_pages: Sequence[int],
+    focus_pages: Sequence[int] | None = None,
     supporting_only: bool = False,
 ) -> Chunk:
     ordered_pages = list(pages)
@@ -222,7 +268,13 @@ def _make_chunk(
         agent=agent,
         pages=ordered_pages,
         images=[images[page] for page in ordered_pages],
-        context_header=_context_header(page_map, agent, ordered_pages, section_pages),
+        context_header=_context_header(
+            page_map,
+            agent,
+            ordered_pages,
+            section_pages,
+            focus_pages or ordered_pages,
+        ),
         supporting_only=supporting_only,
     )
 
@@ -232,6 +284,7 @@ def _context_header(
     agent: ChunkAgent,
     pages: Sequence[int],
     section_pages: Sequence[int],
+    focus_pages: Sequence[int],
 ) -> str:
     company = page_map.company_name_line or "UNREADABLE"
     hints = "; ".join(
@@ -239,10 +292,19 @@ def _context_header(
     )
     hint_text = hints or "No structure hints"
     section = "unclassified" if agent == "review" else agent
+    ownership = ""
+    if agent == "rules" and list(focus_pages) != list(pages):
+        context_only = [page for page in pages if page not in focus_pages]
+        ownership = (
+            f" Emit only clauses whose first quoted words begin on pages "
+            f"{_format_pages(focus_pages)}; pages {_format_pages(context_only)} are "
+            "continuation context only."
+        )
     return (
         f"Document: imza sirküleri of {company}. {hint_text}. "
         f"This request covers pages {_format_pages(pages)} of the {section} section "
-        f"spanning pages {_format_span(section_pages)}. Page numbers below are absolute."
+        f"spanning pages {_format_span(section_pages)}.{ownership} "
+        "Page numbers below are absolute."
     )
 
 

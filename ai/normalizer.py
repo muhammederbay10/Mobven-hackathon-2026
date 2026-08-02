@@ -33,6 +33,7 @@ if __package__:
         RuleConfidence,
         RulePartyRef,
         RulePartyType,
+        RuleSigningForm,
         RuleSource,
         RulesAgentOutput,
         SignatoryRecord,
@@ -40,7 +41,12 @@ if __package__:
         SpecimenBoundingBox,
         SpecimensAgentOutput,
     )
-    from .turkish import canonicalize_masked_id, name_equal, tr_normalize
+    from .turkish import (
+        canonicalize_group_code,
+        canonicalize_masked_id,
+        name_equal,
+        tr_normalize,
+    )
 else:  # scripts may import this module from inside ai/
     from schema import (
         AppointmentsAgentOutput,
@@ -64,6 +70,7 @@ else:  # scripts may import this module from inside ai/
         RuleConfidence,
         RulePartyRef,
         RulePartyType,
+        RuleSigningForm,
         RuleSource,
         RulesAgentOutput,
         SignatoryRecord,
@@ -71,7 +78,12 @@ else:  # scripts may import this module from inside ai/
         SpecimenBoundingBox,
         SpecimensAgentOutput,
     )
-    from turkish import canonicalize_masked_id, name_equal, tr_normalize
+    from turkish import (
+        canonicalize_group_code,
+        canonicalize_masked_id,
+        name_equal,
+        tr_normalize,
+    )
 
 
 DEFAULT_FUZZ_THRESHOLD = 90
@@ -401,13 +413,86 @@ def _dedupe_candidates(
 ) -> list[_RuleCandidate]:
     merged: list[_RuleCandidate] = []
     for candidate in candidates:
-        match_index = _best_match_index(candidate, merged, threshold)
+        compatible = [
+            (index, other)
+            for index, other in enumerate(merged)
+            if _same_rule_identity(candidate.raw, other.raw)
+        ]
+        local_match = _best_match_index(
+            candidate,
+            [other for _, other in compatible],
+            threshold,
+        )
+        match_index = compatible[local_match][0] if local_match is not None else None
         if match_index is None:
             merged.append(candidate)
             continue
-        if _candidate_score(candidate) > _candidate_score(merged[match_index]):
-            merged[match_index] = candidate
+        merged[match_index] = _merge_duplicate_candidates(
+            merged[match_index], candidate
+        )
     return merged
+
+
+def _same_rule_identity(left: RawAuthorityRule, right: RawAuthorityRule) -> bool:
+    """Prevents repeated legal prose from collapsing distinct executable policies."""
+
+    return (
+        left.evidence.page == right.evidence.page
+        and left.amount_min == right.amount_min
+        and left.amount_max == right.amount_max
+        and tr_normalize(left.currency or "") == tr_normalize(right.currency or "")
+        and left.sole_or_joint == right.sole_or_joint
+        and _raw_signing_parties_key(left) == _raw_signing_parties_key(right)
+        and _date_or_none(left.valid_until) == _date_or_none(right.valid_until)
+    )
+
+
+def _raw_party_key(party: RawRuleParty) -> tuple[str, str, str]:
+    return (
+        party.type.value,
+        canonicalize_group_code(party.ref)
+        if party.type is RulePartyType.GROUP
+        else tr_normalize(party.ref or ""),
+        tr_normalize(party.name or ""),
+    )
+
+
+def _raw_signing_parties_key(
+    rule: RawAuthorityRule,
+) -> tuple[tuple[str, str, str], ...]:
+    who = _raw_party_key(rule.who)
+    joint = tuple(sorted(_raw_party_key(item) for item in rule.joint_with))
+    if rule.sole_or_joint is RuleSigningForm.JOINT:
+        return tuple(sorted((who, *joint)))
+    return (who, *joint)
+
+
+def _merge_duplicate_candidates(
+    left: _RuleCandidate, right: _RuleCandidate
+) -> _RuleCandidate:
+    preferred, other = (
+        (right, left)
+        if _candidate_score(right) > _candidate_score(left)
+        else (left, right)
+    )
+    scope_tags = list(preferred.raw.scope_tags)
+    seen = {tr_normalize(tag) for tag in scope_tags}
+    for tag in other.raw.scope_tags:
+        normalized = tr_normalize(tag)
+        if normalized not in seen:
+            scope_tags.append(tag)
+            seen.add(normalized)
+    scope_text = max(
+        (left.raw.scope_text, right.raw.scope_text),
+        key=lambda value: len(tr_normalize(value)),
+    )
+    return _RuleCandidate(
+        raw=preferred.raw.model_copy(
+            update={"scope_tags": scope_tags, "scope_text": scope_text}
+        ),
+        source=preferred.source,
+        supporting=preferred.supporting,
+    )
 
 
 def _best_match_index(
@@ -468,21 +553,19 @@ def _resolve_party(
     structure_hints: Sequence[str],
 ) -> RulePartyRef:
     if raw.type is RulePartyType.GROUP:
-        return RulePartyRef(type=RulePartyType.GROUP, ref=raw.ref, note=raw.note)
+        roster_group = _matching_group_code(raw.ref, signatories)
+        return RulePartyRef(
+            type=RulePartyType.GROUP,
+            ref=roster_group or raw.ref,
+            note=raw.note,
+        )
     assert raw.name is not None
     person = next(
         (item for item in signatories if name_equal(item.name_printed, raw.name)), None
     )
     if person is not None:
         return RulePartyRef(type=RulePartyType.PERSON, ref=person.id, note=raw.note)
-    group = next(
-        (
-            item.group_code
-            for item in signatories
-            if item.group_code and name_equal(item.group_code, raw.name)
-        ),
-        None,
-    )
+    group = _matching_group_code(raw.name, signatories)
     if group is not None:
         return RulePartyRef(type=RulePartyType.GROUP, ref=group, note=raw.note)
     if _group_appears_in_hints(raw.name, structure_hints):
@@ -506,6 +589,22 @@ def _group_appears_in_hints(name: str, hints: Sequence[str]) -> bool:
         if len(words) > 1 and normalized in hint_normalized:
             return True
     return False
+
+
+def _matching_group_code(
+    value: str | None, signatories: Sequence[SignatoryRecord]
+) -> str | None:
+    target = canonicalize_group_code(value)
+    if not target:
+        return None
+    return next(
+        (
+            item.group_code
+            for item in signatories
+            if item.group_code and canonicalize_group_code(item.group_code) == target
+        ),
+        None,
+    )
 
 
 def _page_is_annex_only(page_number: int, page_map: PageMap) -> bool:

@@ -439,6 +439,80 @@ def test_projection_expands_joint_groups_omits_annex_and_blocks_exclusions() -> 
     assert result.representatives[0].co_signers == ["AYŞE DEMİR"]
 
 
+def test_projection_keeps_an_unresolved_joint_clause_as_blocked_evidence() -> None:
+    signatory = normalize_extraction("projection", _page_map(), _chunk_results()).signatories[0]
+    signatory.group_code = "A"
+    unresolved = AuthorityRule(
+        who=RulePartyRef(type=RulePartyType.GROUP, ref="A Grubu"),
+        sole_or_joint=RuleSigningForm.JOINT,
+        joint_with=[
+            RulePartyRef(
+                type=RulePartyType.UNRESOLVED_EXTERNAL,
+                name="BELGEDE TANIMLANMAYAN KİŞİ",
+            )
+        ],
+        scope_tags=["general"],
+        scope_text="Genel işlemler",
+        source=RuleSource.CIRCULAR,
+        evidence=SourceEvidence(page=1, quote="A grubu ve dış kişi müştereken imzalar."),
+        confidence=RuleConfidence.LOW,
+    )
+    circular = CircularExtraction(
+        document_id="projection",
+        company=CompanyRecord(legal_name="ACME ANONİM ŞİRKETİ"),
+        signatories=[signatory],
+        rules=[unresolved],
+        page_map=_page_map(),
+    )
+
+    result = project_extraction(circular, ValidationOutcome())
+
+    assert len(result.rules) == 1
+    assert result.rules[0].blocked is True
+    assert result.rules[0].mode is None
+    assert result.rules[0].co_signers == []
+    assert result.rules[0].evidence == unresolved.evidence
+    assert "rules[0].joint_with" in result.fields_needing_review
+
+
+def test_projection_resolves_roman_and_written_degree_aliases() -> None:
+    first = normalize_extraction("projection", _page_map(), _chunk_results()).signatories[0]
+    first.group_code = "1. derece"
+    second = first.model_copy(
+        update={
+            "id": "sig-2",
+            "name_printed": "AYŞE DEMİR",
+            "name_normalized": "ayse demir",
+            "group_code": "İkinci Derece",
+        }
+    )
+    joint = AuthorityRule(
+        who=RulePartyRef(type=RulePartyType.GROUP, ref="I. Derece"),
+        sole_or_joint=RuleSigningForm.JOINT,
+        joint_with=[
+            RulePartyRef(type=RulePartyType.GROUP, ref="II. Derece İmza Yetkilileri")
+        ],
+        scope_tags=["general"],
+        scope_text="Genel işlemler",
+        source=RuleSource.CIRCULAR,
+        evidence=SourceEvidence(page=1, quote="I. ve II. derece müştereken imzalar."),
+        confidence=RuleConfidence.HIGH,
+    )
+    circular = CircularExtraction(
+        document_id="projection",
+        company=CompanyRecord(legal_name="ACME ANONİM ŞİRKETİ"),
+        signatories=[first, second],
+        rules=[joint],
+        page_map=_page_map(),
+    )
+
+    result = project_extraction(circular, ValidationOutcome())
+
+    assert result.rules[0].blocked is False
+    assert result.rules[0].co_signers == ["rep-1", "rep-2"]
+    assert "rules[0].joint_with" not in result.fields_needing_review
+
+
 @pytest.mark.asyncio
 async def test_invalid_mode_is_a_degraded_contract_not_an_exception() -> None:
     outcome = await extract_document(
