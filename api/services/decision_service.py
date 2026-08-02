@@ -29,6 +29,7 @@ from api.schemas import (
     ExtractionResult,
     RegistryCompanyStatus,
     RegistryRepresentativeStatus,
+    unresolved_blocking_review_fields,
 )
 from api.services import (
     application_service,
@@ -103,7 +104,11 @@ def decide_application(
                     "Çift imza sonucu için gerekçeli onay zorunludur.",
                     status_code=422,
                 )
-        if reviewed.fields_needing_review:
+        blocking_review_fields = unresolved_blocking_review_fields(
+            reviewed.fields_needing_review,
+            extraction_service.corrected_field_paths(session, extraction.id),
+        )
+        if blocking_review_fields:
             raise _approval_error("İnceleme bekleyen alanlar çözülmeden onay verilemez.")
         if not application.identity_verified_at_branch:
             raise _approval_error("Şube kimlik teyidi eksik.")
@@ -121,7 +126,6 @@ def decide_application(
             raise _approval_error("İncelenen belge başvuru şirketine ait değil.")
 
         persons: list[dict[str, object]] = []
-        source_to_registry: dict[str, str] = {}
         for representative in reviewed.representatives:
             matches = [
                 item
@@ -132,12 +136,15 @@ def decide_application(
                 )
                 or normalize_name(item.name) == normalize_name(representative.name)
             ]
+            # The simulated registry is intentionally a narrow current-state
+            # projection, not a copy of every name printed in a multi-page
+            # signature circular. Unmatched document people remain preserved
+            # in the immutable extraction, but they are not promoted into the
+            # active authority record and therefore cannot initiate/cosign a
+            # transaction. The applicant must still match uniquely below.
             if len(matches) != 1 or matches[0].status is not RegistryRepresentativeStatus.ACTIVE:
-                raise _approval_error(
-                    f"{representative.name} güncel sicilde tekil ve aktif olarak doğrulanamadı."
-                )
+                continue
             registry_person = matches[0]
-            source_to_registry[representative.id] = registry_person.id
             persons.append(
                 {
                     "id": registry_person.id,

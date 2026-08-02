@@ -11,6 +11,27 @@
   }
 }
 
+@keyframes operation-progress-sweep {
+  from {
+    transform: translateX(-115%);
+  }
+  to {
+    transform: translateX(310%);
+  }
+}
+
+@keyframes operation-progress-processing {
+  0%,
+  100% {
+    filter: saturate(0.9);
+    opacity: 0.72;
+  }
+  50% {
+    filter: saturate(1.2);
+    opacity: 1;
+  }
+}
+
 /* ==========================================================================
    Design tokens — frozen visual contract.
    Source: docs/fbdocs/design/DESIGN_SYSTEM.md section 3 (verbatim) and
@@ -192,6 +213,17 @@ body {
 }
 
 @layer components {
+  .operation-progress-sweep {
+    width: 34%;
+    animation: operation-progress-sweep 1.45s ease-in-out infinite;
+    background: var(--yc-gradient-action);
+  }
+
+  .operation-progress-processing {
+    animation: operation-progress-processing 1.2s ease-in-out infinite;
+    background: var(--yc-gradient-action);
+  }
+
   /* --- document paper (index.html-derived, YetkiCheck-specific) ---------- */
   .paper {
     background: var(--color-surface);

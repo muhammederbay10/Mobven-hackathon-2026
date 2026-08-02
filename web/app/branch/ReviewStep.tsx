@@ -187,7 +187,7 @@ function DocumentViewer({
   const pages = Array.from({ length: document.page_count }, (_, index) => index + 1);
 
   return (
-    <Card className="overflow-hidden !p-0">
+    <Card className="overflow-hidden p-0!">
       <div className="flex items-center gap-1 overflow-x-auto border-b border-border px-2 py-1.5" role="tablist" aria-label="Belge sayfaları">
         {pages.map((n) => (
           <button
@@ -602,7 +602,7 @@ function CorrectionsPanel({
         {!readOnly && targetKey === null ? (
           <Button
             type="button"
-            className="!h-7 !px-2.5 !text-[12px]"
+            className="h-7! px-2.5! text-[12px]!"
             onClick={() => onTargetKeyChange(options[0]?.key ?? "company.name")}
           >
             <PencilIcon width={12} height={12} />
@@ -894,7 +894,11 @@ function DecisionControls({
   aggregate: ApplicationAggregate;
   onAggregate: (aggregate: ApplicationAggregate) => void;
 }) {
-  const availability = decisionAvailability(aggregate.report, aggregate.extraction);
+  const availability = decisionAvailability(
+    aggregate.report,
+    aggregate.extraction,
+    aggregate.corrections.map((correction) => correction.field_path),
+  );
   const [note, setNote] = useState("");
   const [justification, setJustification] = useState("");
   const [showOverride, setShowOverride] = useState(false);

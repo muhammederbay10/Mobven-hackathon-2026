@@ -40,6 +40,22 @@
           "effective_at": "2023-09-04"
         }
       ]
+    },
+    {
+      "mersis": "0850071279200001",
+      "legal_name": "T.O.M. Katılım Bankası A.Ş.",
+      "tax_number": "8500712792",
+      "status": "ACTIVE",
+      "representatives": [
+        {
+          "id": "rep_tom_sarp",
+          "name": "Sarp TÜZÜN",
+          "tckn": "312******10",
+          "mode": "JOINT",
+          "status": "ACTIVE",
+          "effective_at": "2023-02-02"
+        }
+      ]
     }
   ]
 }

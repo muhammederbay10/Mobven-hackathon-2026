@@ -50,7 +50,7 @@ export function PendingIcon() {
 export function StatusBadge({ status, label }: { status: CheckStatus; label?: string }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-0.5 text-xs font-medium ${TONE[status].icon}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-pill px-2.5 py-0.5 text-xs font-medium ${TONE[status].icon}`}
     >
       <span aria-hidden>{CHECK_STATUS_SYMBOL[status]}</span>
       {label ?? CHECK_STATUS_LABEL[status]}

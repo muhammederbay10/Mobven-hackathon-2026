@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ApiError,
   API_BASE_URL,
+  clearExtractionCache,
   correctExtraction,
   createApplication,
   fieldErrors,
@@ -106,6 +107,16 @@ describe("request construction", () => {
     const bare = stubFetch(jsonResponse({ items: [] }));
     await getAuditHistory();
     expect((bare.mock.calls[0] as [string])[0]).toBe(`${API_BASE_URL}/api/audit`);
+  });
+
+  it("clears only the requested document extraction cache", async () => {
+    const mock = stubFetch(jsonResponse({ removed: 1 }));
+    await clearExtractionCache("abc+123/sha");
+    const [url, init] = mock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(
+      `${API_BASE_URL}/api/demo/cache/clear?document_sha256=abc%2B123%2Fsha`,
+    );
+    expect(init.method).toBe("POST");
   });
 });
 

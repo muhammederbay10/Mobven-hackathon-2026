@@ -124,14 +124,22 @@ def test_no_ai_fixture_contains_an_unmasked_tckn() -> None:
     assert not defects, "privacy defects to hand back:\n" + "\n".join(defects)
 
 
-def test_registry_seed_matches_the_fixed_cast() -> None:
+def test_registry_seed_matches_the_supported_demo_companies() -> None:
     registry = s.Registry.model_validate(load_json(REGISTRY_SEED_FILE))
     companies = {company.mersis: company for company in registry.companies}
-    assert set(companies) == {"0123456789000017", "0987654321000023"}
+    assert set(companies) == {
+        "0123456789000017",
+        "0987654321000023",
+        "0850071279200001",
+    }
     assert {rep.id: (rep.name, rep.tckn) for rep in companies["0123456789000017"].representatives} == {
         "rep_abc_ali": ("Ali Yılmaz", "123******01"),
         "rep_abc_ayse": ("Ayşe Demir", "987******45"),
     }
+    assert {
+        rep.id: (rep.name, rep.tckn, rep.mode.value)
+        for rep in companies["0850071279200001"].representatives
+    } == {"rep_tom_sarp": ("Sarp TÜZÜN", "312******10", "JOINT")}
     for company in registry.companies:
         assert company.status is s.RegistryCompanyStatus.ACTIVE
         assert all(rep.status is s.RegistryRepresentativeStatus.ACTIVE for rep in company.representatives)

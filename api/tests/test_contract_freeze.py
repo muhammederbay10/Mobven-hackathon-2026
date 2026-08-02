@@ -288,6 +288,20 @@ def test_correction_pattern_rejects_everything_else(path: str) -> None:
         s.ExtractionCorrectionItem(field_path=path, expected_old_value=None, new_value="x")
 
 
+def test_only_unresolved_user_actionable_review_fields_block_approval() -> None:
+    fields = [
+        "raw_chunks[3].output.rules[10].joint_with",
+        "rules[27]",
+        "representatives[2].mode",
+        "company.taxNumber",
+        "representatives[rep-1].mode",
+    ]
+    assert s.unresolved_blocking_review_fields(
+        fields,
+        {"representatives[rep-1].mode"},
+    ) == ["company.taxNumber"]
+
+
 # ---------------------------------------------------------------------------
 # Response shapes — plan sections 5.3 and 5.7
 # ---------------------------------------------------------------------------

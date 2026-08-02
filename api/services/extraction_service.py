@@ -40,6 +40,17 @@ def effective_payload(session: Session, extraction: Extraction) -> dict[str, Any
     return ExtractionResult.model_validate(payload).model_dump(mode="json", by_alias=True)
 
 
+def corrected_field_paths(session: Session, extraction_id: int) -> set[str]:
+    """Fields with at least one append-only human correction."""
+
+    rows = session.exec(
+        select(ExtractionCorrection.field_path).where(
+            ExtractionCorrection.extraction_id == extraction_id
+        )
+    ).all()
+    return set(rows)
+
+
 def get_value(payload: dict[str, Any], field_path: str) -> Any:
     company_paths = {
         "company.name": ("company", "name"),

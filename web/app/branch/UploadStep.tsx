@@ -9,6 +9,7 @@ import {
   getApplication,
   uploadDocument,
 } from "@/lib/api";
+import type { UploadProgress } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import type { ApplicationAggregate, DocumentView } from "@/lib/types";
 
@@ -21,10 +22,10 @@ import { Button, Checkbox, Field, Input } from "@/components/UI";
  * Step 2 — original document upload and analysis (guide section 10).
  *
  * Honesty rules baked in here:
- * - upload progress is indeterminate ("Belge yükleniyor") because the fetch
- *   transport exposes no byte progress — no fabricated percentages;
- * - analysis progress is calm text without invented stages, because the
- *   backend does not stream stages;
+ * - upload uses browser byte progress, then switches to a distinct server-side
+ *   processing state after the request body has arrived;
+ * - analysis shows elapsed time and the real pipeline, but no fabricated
+ *   percentage because the backend does not stream stage completion;
  * - the local thumbnail (images only) is replaced by the server-rendered first
  *   page once `DocumentView` exists — server data is authoritative;
  * - a retryable AI failure preserves the document and offers `/analyze` again.
@@ -92,6 +93,7 @@ function UploadForm({
   const [originalSeen, setOriginalSeen] = useState(false);
   const [scannedBy, setScannedBy] = useState("Şube görevlisi");
   const [pending, setPending] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -130,12 +132,19 @@ function UploadForm({
     event.preventDefault();
     if (!canSubmit || file === null) return;
     setPending(true);
+    setUploadProgress({ phase: "uploading", loadedBytes: 0, totalBytes: file.size, percent: 0 });
     setError(null);
     try {
-      await uploadDocument(applicationId, file, {
-        original_seen: originalSeen,
-        scanned_by: scannedBy.trim(),
-      });
+      await uploadDocument(
+        applicationId,
+        file,
+        {
+          original_seen: originalSeen,
+          scanned_by: scannedBy.trim(),
+        },
+        undefined,
+        setUploadProgress,
+      );
       // The upload returns a DocumentView; the application status moved on the
       // server. Refetch the aggregate rather than patching state locally.
       onAggregate(await getApplication(applicationId));
@@ -143,7 +152,12 @@ function UploadForm({
       if (cause instanceof DOMException && cause.name === "AbortError") return;
       setError(cause);
       setPending(false);
+      setUploadProgress(null);
     }
+  }
+
+  if (pending && file) {
+    return <UploadingCard file={file} progress={uploadProgress} />;
   }
 
   return (
@@ -263,15 +277,6 @@ function UploadForm({
           </span>
         </label>
 
-        {pending ? (
-          <div className="mt-4 flex items-center gap-2.5 text-[13px] text-ink-secondary" role="status" aria-live="polite">
-            <span className="h-1.5 w-40 overflow-hidden rounded-pill bg-surface-subtle">
-              <span className="block h-full w-1/3 animate-pulse rounded-pill bg-info" />
-            </span>
-            Belge yükleniyor…
-          </div>
-        ) : null}
-
         {error ? <InlineApiError error={error} /> : null}
 
         <div className="mt-4">
@@ -281,6 +286,69 @@ function UploadForm({
         </div>
       </Card>
     </form>
+  );
+}
+
+function UploadingCard({
+  file,
+  progress,
+}: {
+  file: File;
+  progress: UploadProgress | null;
+}) {
+  const elapsed = useElapsedSeconds();
+  const processing = progress?.phase === "processing";
+  const percent = progress?.percent;
+
+  return (
+    <Card>
+      <div role="status" aria-live="polite">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-info">
+              Belge alımı
+            </p>
+            <h4 className="mt-1 text-[14px] font-semibold text-ink">
+              {processing ? "Dosya aktarıldı, sunucuda hazırlanıyor" : "Belge sunucuya aktarılıyor"}
+            </h4>
+          </div>
+          <span className="rounded-pill bg-info-soft px-2.5 py-1 font-mono text-[11px] text-info">
+            {formatElapsed(elapsed)}
+          </span>
+        </div>
+
+        <div className="mt-4 overflow-hidden rounded-pill bg-surface-subtle" aria-hidden>
+          {percent === null || percent === undefined ? (
+            <span className="operation-progress-sweep block h-2 rounded-pill bg-info" />
+          ) : (
+            <span
+              className={`block h-2 rounded-pill bg-info transition-[width] duration-200 ${
+                processing ? "operation-progress-processing" : ""
+              }`}
+              style={{ width: `${percent}%` }}
+            />
+          )}
+        </div>
+
+        <div className="mt-2 flex items-center justify-between gap-3 text-[11.5px]">
+          <span className="min-w-0 truncate text-ink-secondary" title={file.name}>
+            {file.name} · {formatFileSize(file.size)}
+          </span>
+          <b className="flex-none font-mono font-semibold text-ink">
+            {processing ? "Sunucu işliyor" : percent === null || percent === undefined ? "Aktarılıyor" : `%${percent}`}
+          </b>
+        </div>
+
+        <div className="mt-4 rounded-card border border-border bg-surface-subtle px-3.5 py-3">
+          <p className="text-[12.5px] leading-5 text-ink-secondary">
+            {processing
+              ? "PDF doğrulanıyor, sayfa görüntüleri hazırlanıyor ve belge kaydı oluşturuluyor."
+              : "Gerçek aktarım yüzdesi dosyanın tarayıcıdan sunucuya gönderilen baytlarından hesaplanır."}
+          </p>
+          <p className="mt-1 text-[11.5px] text-ink-muted">Bu işlem tamamlanana kadar sayfadan ayrılmayın.</p>
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -329,21 +397,69 @@ function DocMeta({ label, value, mono = false }: { label: string; value: string;
 /* -------------------------------------------------------------------------- */
 
 function AnalyzingCard() {
+  const elapsed = useElapsedSeconds();
+
   return (
     <Card>
-      <h4 className="mb-1 text-[13.5px] font-semibold text-ink">Belge analiz ediliyor</h4>
-      <div className="mt-2 flex items-center gap-2.5 text-[13px] text-ink-secondary" role="status" aria-live="polite">
-        <span className="h-1.5 w-40 overflow-hidden rounded-pill bg-surface-subtle">
-          <span className="block h-full w-1/3 animate-pulse rounded-pill bg-info" />
-        </span>
-        Bu işlem biraz sürebilir.
+      <div role="status" aria-live="polite">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-info">
+              Canlı analiz
+            </p>
+            <h4 className="mt-1 text-[14px] font-semibold text-ink">Belge AI servisinde inceleniyor</h4>
+          </div>
+          <span className="rounded-pill bg-info-soft px-2.5 py-1 font-mono text-[11px] text-info">
+            {formatElapsed(elapsed)}
+          </span>
+        </div>
+
+        <div className="mt-4 h-2 overflow-hidden rounded-pill bg-surface-subtle" aria-hidden>
+          <span className="operation-progress-sweep block h-full rounded-pill bg-info" />
+        </div>
+
+        <ol className="mt-4 space-y-2">
+          {[
+            ["Belge okuma ve alan çıkarma", "AI /extract"],
+            ["Başvuru ve simüle sicil karşılaştırması", "Bank API → AI /analyze"],
+            ["Dokuz kontrol ve karar raporu", "Sonuçların kalıcı kaydı"],
+          ].map(([label, detail], index) => (
+            <li key={label} className="flex items-center gap-2.5 rounded-control border border-border bg-surface-subtle px-3 py-2">
+              <span className="grid size-5 flex-none place-items-center rounded-full bg-info-soft text-[10px] font-semibold text-info">
+                {index + 1}
+              </span>
+              <span className="min-w-0 flex-1 text-[12px] font-medium text-ink">{label}</span>
+              <span className="hidden text-[10.5px] text-ink-muted sm:block">{detail}</span>
+            </li>
+          ))}
+        </ol>
       </div>
-      <p className="mt-3 text-[12px] leading-5 text-ink-muted">
-        Sonuç sunucudan geldiğinde inceleme ekranı açılır; sayfayı yenileseniz de kaldığı
-        yerden devam eder.
+      <p className="mt-3 text-[11.5px] leading-5 text-ink-muted">
+        Sunucu aşama yüzdesi yayınlamadığı için sahte yüzde yerine geçen süre gösterilir. Taranmış
+        veya çok sayfalı belgelerde analiz bir dakikadan uzun sürebilir.
       </p>
     </Card>
   );
+}
+
+function useElapsedSeconds(): number {
+  const [elapsed, setElapsed] = useState(0);
+  const startedAt = useRef(Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt.current) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return elapsed;
+}
+
+function formatElapsed(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function AnalyzeCard({

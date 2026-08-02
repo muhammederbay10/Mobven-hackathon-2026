@@ -166,6 +166,13 @@ async function requestParsed<Schema extends z.ZodTypeAny>(
   options: RequestOptions = {},
 ): Promise<z.infer<Schema>> {
   const payload = await request<unknown>(path, options);
+  return parseSuccessfulPayload(schema, payload);
+}
+
+function parseSuccessfulPayload<Schema extends z.ZodTypeAny>(
+  schema: Schema,
+  payload: unknown,
+): z.infer<Schema> {
   const parsed = schema.safeParse(payload);
   if (!parsed.success) {
     throw new ApiError({
@@ -188,15 +195,23 @@ function safeJsonParse(text: string): unknown {
 }
 
 function toApiError(response: Response, payload: unknown): ApiError {
+  return toApiErrorParts(response.status, payload, response.headers.get("X-Correlation-Id"));
+}
+
+function toApiErrorParts(
+  status: number,
+  payload: unknown,
+  headerCorrelationId: string | null,
+): ApiError {
   const envelope = payload as ErrorResponse | null;
   const correlationId =
-    response.headers.get("X-Correlation-Id") ?? envelope?.error?.correlation_id ?? null;
+    headerCorrelationId ?? envelope?.error?.correlation_id ?? null;
 
   if (envelope?.error?.code) {
     return new ApiError({
       code: envelope.error.code,
       message: envelope.error.message,
-      status: response.status,
+      status,
       retryable: envelope.error.retryable,
       details: envelope.error.details ?? {},
       correlationId,
@@ -208,8 +223,8 @@ function toApiError(response: Response, payload: unknown): ApiError {
   return new ApiError({
     code: "INTERNAL_ERROR",
     message: "Beklenmeyen bir hata oluştu.",
-    status: response.status,
-    retryable: response.status >= 500,
+    status,
+    retryable: status >= 500,
     correlationId,
   });
 }
@@ -258,6 +273,17 @@ export const resetDemo = (signal?: AbortSignal) =>
     signal,
   });
 
+/** Clears either one document's extraction cache or, when omitted, the full AI cache. */
+export const clearExtractionCache = (documentSha256?: string, signal?: AbortSignal) => {
+  const params = new URLSearchParams();
+  if (documentSha256) params.set("document_sha256", documentSha256);
+  const query = params.toString();
+  return request<{ removed: number }>(`/api/demo/cache/clear${query ? `?${query}` : ""}`, {
+    method: "POST",
+    signal,
+  });
+};
+
 /* -------------------------------------------------------------------------- */
 /* Applications and documents — plan section 8.3                              */
 /* -------------------------------------------------------------------------- */
@@ -279,22 +305,112 @@ export const getApplication = (
 ): Promise<ApplicationAggregate> =>
   requestParsed(`/api/applications/${applicationId}`, applicationAggregateSchema, { signal });
 
+export type UploadProgress = {
+  phase: "uploading" | "processing";
+  loadedBytes: number;
+  totalBytes: number;
+  percent: number | null;
+};
+
 export const uploadDocument = (
   applicationId: number,
   file: File,
   fields: { original_seen: boolean; scanned_by: string },
   signal?: AbortSignal,
+  onProgress?: (progress: UploadProgress) => void,
 ): Promise<DocumentView> => {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("original_seen", String(fields.original_seen));
   formData.append("scanned_by", fields.scanned_by);
+
+  // Fetch intentionally remains the default transport. When the screen asks
+  // for genuine byte progress, XHR is used because fetch does not expose
+  // browser upload progress events. Both paths stay inside this API module.
+  if (onProgress && typeof XMLHttpRequest !== "undefined") {
+    return uploadDocumentWithProgress(applicationId, formData, signal, onProgress);
+  }
+
   return requestParsed(`/api/applications/${applicationId}/document`, documentViewSchema, {
     method: "POST",
     formData,
     signal,
   });
 };
+
+function uploadDocumentWithProgress(
+  applicationId: number,
+  formData: FormData,
+  signal: AbortSignal | undefined,
+  onProgress: (progress: UploadProgress) => void,
+): Promise<DocumentView> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const abort = () => xhr.abort();
+    const cleanup = () => signal?.removeEventListener("abort", abort);
+
+    xhr.open("POST", `${API_BASE_URL}/api/applications/${applicationId}/document`);
+    xhr.upload.addEventListener("progress", (event) => {
+      const totalBytes = event.lengthComputable ? event.total : 0;
+      onProgress({
+        phase: "uploading",
+        loadedBytes: event.loaded,
+        totalBytes,
+        percent: totalBytes > 0 ? Math.min(100, Math.round((event.loaded / totalBytes) * 100)) : null,
+      });
+    });
+    xhr.upload.addEventListener("load", () => {
+      onProgress({
+        phase: "processing",
+        loadedBytes: formData.get("file") instanceof File ? (formData.get("file") as File).size : 0,
+        totalBytes: formData.get("file") instanceof File ? (formData.get("file") as File).size : 0,
+        percent: 100,
+      });
+    });
+    xhr.addEventListener("load", () => {
+      cleanup();
+      const payload: unknown = xhr.responseText ? safeJsonParse(xhr.responseText) : null;
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(
+          toApiErrorParts(
+            xhr.status,
+            payload,
+            xhr.getResponseHeader("X-Correlation-Id"),
+          ),
+        );
+        return;
+      }
+      try {
+        resolve(parseSuccessfulPayload(documentViewSchema, payload));
+      } catch (error) {
+        reject(error);
+      }
+    });
+    xhr.addEventListener("error", () => {
+      cleanup();
+      reject(
+        new ApiError({
+          code: "NETWORK_ERROR",
+          message: "Sunucuya ulaşılamadı. Bağlantıyı kontrol edip tekrar deneyin.",
+          status: 0,
+          retryable: true,
+        }),
+      );
+    });
+    xhr.addEventListener("abort", () => {
+      cleanup();
+      reject(new DOMException("aborted", "AbortError"));
+    });
+
+    if (signal?.aborted) {
+      reject(new DOMException("aborted", "AbortError"));
+      return;
+    }
+    signal?.addEventListener("abort", abort, { once: true });
+    onProgress({ phase: "uploading", loadedBytes: 0, totalBytes: 0, percent: 0 });
+    xhr.send(formData);
+  });
+}
 
 /**
  * Runs (or retries) the AI analysis. Idempotent for an already-ANALYZED

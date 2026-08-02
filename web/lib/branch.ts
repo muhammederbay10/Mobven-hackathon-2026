@@ -14,6 +14,7 @@ import type {
   ExtractionResult,
   OnboardingVerdict,
 } from "./types";
+import { CORRECTION_PATH_PATTERN } from "./types";
 
 /* -------------------------------------------------------------------------- */
 /* Status → stepper mapping (guide section 9)                                 */
@@ -71,6 +72,7 @@ export type DecisionAvailability = {
 export function decisionAvailability(
   report: CheckReport | null,
   extraction: ExtractionResult | null,
+  correctedFieldPaths: readonly string[] = [],
 ): DecisionAvailability {
   if (report === null) {
     return {
@@ -81,7 +83,10 @@ export function decisionAvailability(
     };
   }
 
-  const openReviewFields = extraction?.fieldsNeedingReview ?? [];
+  const corrected = new Set(correctedFieldPaths);
+  const openReviewFields = (extraction?.fieldsNeedingReview ?? []).filter(
+    (fieldPath) => CORRECTION_PATH_PATTERN.test(fieldPath) && !corrected.has(fieldPath),
+  );
   if (openReviewFields.length > 0) {
     return {
       approve: "hidden",

@@ -166,6 +166,54 @@ def test_corrections_approval_authorization_and_cosign(client: TestClient) -> No
     assert len(client.get(f"/api/transactions?mersis={ABC}").json()) == 5
 
 
+def test_internal_ai_diagnostics_and_unmatched_document_people_do_not_block_approval(
+    client: TestClient,
+) -> None:
+    """Raw extraction stays complete; only active registry matches become authority people."""
+    from copy import deepcopy
+
+    from sqlmodel import Session, select
+
+    from api.db import get_engine
+    from api.models import Document, Extraction
+
+    application_id = _prepare(client, 1)
+    assert client.post(f"/api/applications/{application_id}/analyze").status_code == 200
+
+    with Session(get_engine()) as session:
+        document = session.exec(
+            select(Document).where(Document.application_id == application_id)
+        ).one()
+        extraction = session.exec(
+            select(Extraction).where(Extraction.document_id == document.id)
+        ).one()
+        payload = deepcopy(extraction.payload)
+        payload["fieldsNeedingReview"] = ["raw_chunks[3].output.rules[10].joint_with"]
+        payload["representatives"].append(
+            {
+                "id": "rep-extra",
+                "name": "Belgede Kalan Kişi",
+                "nameNormalized": "belgede kalan kisi",
+                "nationalId": "999******99",
+                "title": "Temsilci",
+                "mode": "SOLE",
+                "coSigners": [],
+                "limits": None,
+            }
+        )
+        extraction.payload = payload
+        session.add(extraction)
+        session.commit()
+
+    approved = client.post(
+        f"/api/applications/{application_id}/decision",
+        json={"action": "approve"},
+    )
+    assert approved.status_code == 200, approved.text
+    authority_names = {person["name"] for person in approved.json()["authority"]["persons"]}
+    assert "Belgede Kalan Kişi" not in authority_names
+
+
 def test_missing_document_wrong_state_and_cache_controls(client: TestClient) -> None:
     application_id = client.post("/api/demo/load-case/1").json()["application_id"]
     missing = client.post(f"/api/applications/{application_id}/analyze")

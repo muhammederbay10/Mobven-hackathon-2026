@@ -302,7 +302,7 @@ function PendingApplicationsPanel({
                 <th className="px-4 py-2.5 font-semibold">Başvuru</th>
                 <th className="px-4 py-2.5 font-semibold">Durum</th>
                 <th className="px-4 py-2.5 font-semibold">Son güncelleme</th>
-                <th className="px-4 py-2.5 font-semibold">
+                <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-semibold">
                   <span className="sr-only">İşlem</span>
                 </th>
               </tr>
@@ -324,7 +324,7 @@ function PendingApplicationsPanel({
                   <td className="px-4 py-2.5 font-mono text-[12px] text-ink-secondary">
                     #{application.id}
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="whitespace-nowrap px-4 py-2.5">
                     <StatusBadge
                       status={STATUS_TONE[application.status]}
                       label={APPLICATION_STATUS_LABEL[application.status]}
@@ -333,10 +333,10 @@ function PendingApplicationsPanel({
                   <td className="px-4 py-2.5 text-ink-secondary">
                     {formatInstant(application.updated_at)}
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="w-px whitespace-nowrap px-4 py-2.5 text-right">
                     <Link
                       href={`/branch?application=${application.id}`}
-                      className="inline-flex h-7 items-center rounded-control border border-border-strong bg-surface px-2.5 text-[12px] font-medium text-ink hover:bg-surface-hover"
+                      className="inline-flex h-8 min-w-[76px] items-center justify-center whitespace-nowrap rounded-control border border-border-strong bg-surface px-3 text-[12px] font-medium leading-none text-ink transition-colors hover:bg-surface-hover"
                     >
                       Devam et
                     </Link>

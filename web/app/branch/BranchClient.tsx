@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getApplication } from "@/lib/api";
+import { clearExtractionCache, getApplication } from "@/lib/api";
 import { branchStepForStatus } from "@/lib/branch";
 import { rememberApplicationId, rememberMersis } from "@/lib/clientState";
 import { APPLICATION_STATUS_LABEL } from "@/lib/format";
@@ -37,6 +37,12 @@ type AggregateState =
   | { kind: "error"; error: unknown }
   | { kind: "ready"; aggregate: ApplicationAggregate };
 
+type CacheResetState =
+  | { kind: "idle" }
+  | { kind: "pending" }
+  | { kind: "success"; removed: number }
+  | { kind: "error"; error: unknown };
+
 export function BranchClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -48,6 +54,7 @@ export function BranchClient() {
   const invalidParam = applicationParam !== null && applicationId === null;
 
   const [state, setState] = useState<AggregateState>({ kind: "idle" });
+  const [cacheReset, setCacheReset] = useState<CacheResetState>({ kind: "idle" });
   const abortRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async (id: number, { silent = false } = {}) => {
@@ -101,6 +108,19 @@ export function BranchClient() {
   }, [applicationId, load]);
 
   const activeStep = branchStepForStatus(status);
+  const currentDocument = state.kind === "ready" ? state.aggregate.document : null;
+
+  async function restartWithSameDocument() {
+    if (!currentDocument || cacheReset.kind === "pending" || status === "ANALYZING") return;
+    setCacheReset({ kind: "pending" });
+    try {
+      const result = await clearExtractionCache(currentDocument.document_sha256);
+      setCacheReset({ kind: "success", removed: result.removed });
+      router.replace("/branch");
+    } catch (error) {
+      setCacheReset({ kind: "error", error });
+    }
+  }
 
   return (
     <>
@@ -109,12 +129,39 @@ export function BranchClient() {
           title="Şube — kurumsal başvuru ve ön kontrol"
           subtitle="Müşteri sirkülerin aslını şubeye getirir. Görevli kimliği ve belgenin aslını görür, tarar; sistem okur ve karşılaştırır."
         />
-        {status !== null ? (
-          <span className="rounded-pill border border-border-strong px-3 py-1 text-[12px] text-ink-secondary">
-            Durum: <b className="font-semibold text-ink">{APPLICATION_STATUS_LABEL[status]}</b>
-          </span>
-        ) : null}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {currentDocument && status !== "ANALYZING" ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={restartWithSameDocument}
+              disabled={cacheReset.kind === "pending"}
+              title="Bu belgenin AI çıkarım önbelleğini temizler ve yeni başvuru ekranını açar"
+            >
+              {cacheReset.kind === "pending" ? "Önbellek temizleniyor…" : "Aynı belgeyi baştan işle"}
+            </Button>
+          ) : null}
+          {status !== null ? (
+            <span className="rounded-pill border border-border-strong px-3 py-1 text-[12px] text-ink-secondary">
+              Durum: <b className="font-semibold text-ink">{APPLICATION_STATUS_LABEL[status]}</b>
+            </span>
+          ) : null}
+        </div>
       </div>
+
+      {cacheReset.kind === "success" ? (
+        <div className="mb-4 rounded-panel border border-success/30 bg-success-soft px-4 py-3 text-[12.5px] text-success" role="status">
+          {cacheReset.removed > 0
+            ? "Belgenin AI çıkarım önbelleği temizlendi. Yeni başvuruyu oluşturup aynı dosyayı yüklediğinizde belge yeniden AI servisine gönderilir."
+            : "Bu belge için kayıtlı AI önbelleği yoktu. Yeni başvuruyla sürece baştan devam edebilirsiniz."}
+        </div>
+      ) : cacheReset.kind === "error" ? (
+        <div className="mb-4 rounded-panel border border-danger/30 bg-danger-soft px-4 py-3 text-[12.5px] text-danger" role="alert">
+          {cacheReset.error instanceof Error
+            ? cacheReset.error.message
+            : "Belge önbelleği temizlenemedi."}
+        </div>
+      ) : null}
 
       <Panel className="overflow-hidden">
         <ol className="flex border-b border-border">
@@ -158,7 +205,10 @@ export function BranchClient() {
           />
         ) : applicationId === null ? (
           <CreateStep
-            onCreated={(view) => router.replace(`/branch?application=${view.id}`)}
+            onCreated={(view) => {
+              setCacheReset({ kind: "idle" });
+              router.replace(`/branch?application=${view.id}`);
+            }}
           />
         ) : state.kind === "loading" || state.kind === "idle" ? (
           <LoadingState label="Başvuru sunucudan yükleniyor…" />

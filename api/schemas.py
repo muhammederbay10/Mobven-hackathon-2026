@@ -27,6 +27,7 @@ against delivered fixtures, never as runtime business logic.
 from __future__ import annotations
 
 from enum import Enum
+import re
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
@@ -709,6 +710,27 @@ CORRECTION_PATH_PATTERN = (
     r"|representatives\[[a-z][a-z0-9_-]{0,63}\]\.(name|mode)"
     r"|validUntil)$"
 )
+
+
+def unresolved_blocking_review_fields(
+    fields_needing_review: list[str],
+    corrected_field_paths: set[str] | frozenset[str] = frozenset(),
+) -> list[str]:
+    """Return only unresolved review flags the branch operator can act on.
+
+    The AI response is persisted verbatim, including internal diagnostics such
+    as ``raw_chunks`` and ``rules``. Those paths are valuable for audit/debugging
+    but are not editable in the branch UI and therefore must not create a hidden
+    approval deadlock. The correction allowlist is the single source of truth
+    for which review flags are user-actionable and blocking.
+    """
+
+    return [
+        field_path
+        for field_path in fields_needing_review
+        if re.fullmatch(CORRECTION_PATH_PATTERN, field_path)
+        and field_path not in corrected_field_paths
+    ]
 
 
 class CreateApplicationRequest(FrozenModel):

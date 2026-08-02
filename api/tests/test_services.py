@@ -36,7 +36,11 @@ ABC = "0123456789000017"
 def test_registry_falls_back_to_the_seed_before_the_first_reset(demo_env: Settings) -> None:
     assert not demo_env.registry_path.exists()
     registry = registry_service.load(demo_env)
-    assert {company.mersis for company in registry.companies} == {ABC, "0987654321000023"}
+    assert {company.mersis for company in registry.companies} == {
+        ABC,
+        "0987654321000023",
+        "0850071279200001",
+    }
 
 
 def test_representatives_are_addressed_by_stable_id_not_name(demo_env: Settings) -> None:

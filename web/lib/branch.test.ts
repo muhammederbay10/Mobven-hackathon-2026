@@ -120,6 +120,29 @@ describe("decisionAvailability — the four-verdict approval matrix", () => {
     expect(availability.approveBlockedReason).toBeTruthy();
   });
 
+  it("internal AI diagnostics do not create a hidden approval deadlock", () => {
+    const flagged = {
+      ...EXTRACTION,
+      fieldsNeedingReview: [
+        "raw_chunks[3].output.rules[10].joint_with",
+        "rules[27]",
+        "representatives[2].mode",
+      ],
+    };
+    const availability = decisionAvailability(report("CO_SIGNER_REQUIRED"), flagged);
+    expect(availability.approve).toBe("override");
+  });
+
+  it("a human correction resolves its matching blocking review flag", () => {
+    const flagged = { ...EXTRACTION, fieldsNeedingReview: ["company.taxNumber"] };
+    const availability = decisionAvailability(
+      report("READY"),
+      flagged,
+      ["company.taxNumber"],
+    );
+    expect(availability.approve).toBe("normal");
+  });
+
   it("no report: no decisions at all", () => {
     const availability = decisionAvailability(null, EXTRACTION);
     expect(availability.approve).toBe("hidden");
