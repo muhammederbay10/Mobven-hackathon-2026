@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "document_id": "case2",
+  "company": {
+    "name": "ABC Teknoloji Ltd. Şti.",
+    "taxNumber": "1234567890",
+    "mersisNumber": "0123456789000017",
+    "legalNameNormalized": "abc teknoloji limited şirketi"
+  },
+  "notary": {"name": "İstanbul 12. Noterliği", "date": "2026-02-10", "yevmiye": "2026/1881"},
+  "validUntil": "2029-02-10",
+  "representatives": [
+    {"id": "rep-1", "name": "Ali Yılmaz", "nameNormalized": "ali yılmaz", "nationalId": "123******01", "title": "Müdür", "mode": "JOINT", "coSigners": ["Ayşe Demir"], "limits": null},
+    {"id": "rep-2", "name": "Ayşe Demir", "nameNormalized": "ayşe demir", "nationalId": "987******45", "title": "Müdür", "mode": "JOINT", "coSigners": ["Ali Yılmaz"], "limits": null}
+  ],
+  "fieldsNeedingReview": [],
+  "evidence": {"authorityClause": "Şirket her konuda Ali Yılmaz ve Ayşe Demir'in müşterek imzası ile temsil edilir.", "page": 1},
+  "rules": [
+    {"scope": "general", "threshold": null, "mode": "JOINT", "coSigners": ["rep-1", "rep-2"], "blocked": false, "evidence": {"page": 1, "quote": "her konuda müştereken"}},
+    {"scope": "credit", "threshold": null, "mode": "JOINT", "coSigners": ["rep-1", "rep-2"], "blocked": false, "evidence": {"page": 1, "quote": "her konuda müştereken"}},
+    {"scope": "real_estate", "threshold": null, "mode": null, "coSigners": [], "blocked": true, "evidence": {"page": 2, "quote": "taşınmaz işlemleri kapsam dışıdır"}}
+  ]
+}

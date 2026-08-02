@@ -1,0 +1,344 @@
+@import "tailwindcss";
+
+@keyframes intake-in {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes operation-progress-sweep {
+  from {
+    transform: translateX(-115%);
+  }
+  to {
+    transform: translateX(310%);
+  }
+}
+
+@keyframes operation-progress-processing {
+  0%,
+  100% {
+    filter: saturate(0.9);
+    opacity: 0.72;
+  }
+  50% {
+    filter: saturate(1.2);
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   Design tokens — frozen visual contract.
+   Source: docs/fbdocs/design/DESIGN_SYSTEM.md section 3 (verbatim) and
+   docs/fbdocs/design/nexai-dashboard-reference.png.
+
+   The `--yc-*` custom properties below are copied from the design doc exactly
+   as specified — do not rename or reinterpret them per component. Everything
+   downstream (Tailwind utilities, the few hand-written classes for
+   YetkiCheck-specific surfaces) consumes these; nothing introduces a one-off
+   hex color, shadow, radius, or font outside this block.
+
+   Precedence (DESIGN_SYSTEM.md section 1): PROJECT.md > IMPLEMENTATION_PLAN.md
+   > this file + the reference PNG (shell/typography/palette/controls) >
+   index.html (YetkiCheck-specific workflow presentation only).
+   ========================================================================== */
+
+:root {
+  /* Canvas and surfaces */
+  --yc-canvas: #f0f0f2;
+  --yc-shell: #fbfbfc;
+  --yc-surface: #ffffff;
+  --yc-surface-subtle: #fafafb;
+  --yc-surface-hover: #f7f8fa;
+
+  /* Borders */
+  --yc-border: #e8e8ec;
+  --yc-border-strong: #dcdee4;
+
+  /* Text */
+  --yc-text: #25262b;
+  --yc-text-secondary: #666970;
+  --yc-text-muted: #9a9da5;
+
+  /* Reference accents — decorative only, never a verdict color (section 3) */
+  --yc-cyan: #2abde2;
+  --yc-cyan-soft: #eaf8fc;
+  --yc-pink: #ff78b7;
+  --yc-pink-soft: #fff0f7;
+  --yc-violet: #a78bfa;
+  --yc-violet-soft: #f3efff;
+
+  /* Semantic outcomes — the only colors allowed to represent a verdict/check */
+  --yc-success: #16875b;
+  --yc-success-soft: #eaf7f1;
+  --yc-warning: #a66a13;
+  --yc-warning-soft: #fff5e5;
+  --yc-danger: #c54a55;
+  --yc-danger-soft: #fdeef0;
+  --yc-info: #187fa0;
+  --yc-info-soft: #eaf8fc;
+
+  /* Shape */
+  --yc-radius-shell: 22px;
+  --yc-radius-panel: 14px;
+  --yc-radius-card: 12px;
+  --yc-radius-control: 10px;
+  --yc-radius-pill: 999px;
+
+  /* Elevation */
+  --yc-shadow-shell: 0 18px 45px rgb(28 30 38 / 8%);
+  --yc-shadow-panel: 0 1px 2px rgb(28 30 38 / 4%);
+  --yc-shadow-raised: 0 8px 24px rgb(28 30 38 / 8%);
+
+  /* Layout */
+  --yc-sidebar-width: 252px;
+  --yc-sidebar-rail-width: 64px;
+  --yc-topbar-height: 54px;
+  --yc-page-gap: 20px;
+  --yc-panel-padding: 16px;
+  --yc-shell-max-width: 1440px;
+  --yc-shell-gutter: 28px;
+
+  /* Accent gradient — sparing use only: primary top-bar action, brand mark,
+     or a subtle divider wash (section 3). Never substitutes a verdict color. */
+  --yc-gradient-action: linear-gradient(135deg, #b99cff 0%, #66cce8 52%, #23b9dd 100%);
+  --yc-gradient-wash: linear-gradient(
+    90deg,
+    rgb(255 120 183 / 10%) 0%,
+    rgb(255 255 255 / 0%) 34%,
+    rgb(42 189 226 / 18%) 70%,
+    rgb(167 139 250 / 20%) 100%
+  );
+
+  /* Document-paper family (section 4) — kept as a literal token because it is
+     never meant to track the primary UI family. */
+  --yc-font-paper: Georgia, "Times New Roman", serif;
+  /* Evidence identifiers, MERSİS values, hashes, authorization codes, amounts. */
+  --yc-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Inter is loaded via next/font/local in app/layout.tsx (two files: a Latin
+   primary plus a Latin-Extended fallback — see the comment there for why two
+   are needed for Turkish text). next/font applies `--font-inter-latin` and
+   `--font-inter-latin-ext` as real CSS custom properties on <html>; `--font-sans`
+   below just chains them ahead of the documented system fallback. */
+
+@theme inline {
+  /* Surfaces */
+  --color-canvas: var(--yc-canvas);
+  --color-shell: var(--yc-shell);
+  --color-surface: var(--yc-surface);
+  --color-surface-subtle: var(--yc-surface-subtle);
+  --color-surface-hover: var(--yc-surface-hover);
+
+  /* Borders */
+  --color-border: var(--yc-border);
+  --color-border-strong: var(--yc-border-strong);
+
+  /* Text — named "ink" on the Tailwind side to avoid a text-text stutter;
+     the literal --yc-text* properties above remain the source of truth. */
+  --color-ink: var(--yc-text);
+  --color-ink-secondary: var(--yc-text-secondary);
+  --color-ink-muted: var(--yc-text-muted);
+
+  /* Reference accents */
+  --color-cyan: var(--yc-cyan);
+  --color-cyan-soft: var(--yc-cyan-soft);
+  --color-pink: var(--yc-pink);
+  --color-pink-soft: var(--yc-pink-soft);
+  --color-violet: var(--yc-violet);
+  --color-violet-soft: var(--yc-violet-soft);
+
+  /* Semantic outcomes */
+  --color-success: var(--yc-success);
+  --color-success-soft: var(--yc-success-soft);
+  --color-warning: var(--yc-warning);
+  --color-warning-soft: var(--yc-warning-soft);
+  --color-danger: var(--yc-danger);
+  --color-danger-soft: var(--yc-danger-soft);
+  --color-info: var(--yc-info);
+  --color-info-soft: var(--yc-info-soft);
+
+  /* Shape */
+  --radius-shell: var(--yc-radius-shell);
+  --radius-panel: var(--yc-radius-panel);
+  --radius-card: var(--yc-radius-card);
+  --radius-control: var(--yc-radius-control);
+  --radius-pill: var(--yc-radius-pill);
+
+  /* Elevation */
+  --shadow-shell: var(--yc-shadow-shell);
+  --shadow-panel: var(--yc-shadow-panel);
+  --shadow-raised: var(--yc-shadow-raised);
+
+  /* Typography — Inter first, its Latin-Extended fallback second, then the
+     documented system fallback (DESIGN_SYSTEM.md section 4). The two
+     `--font-inter-*` variables are set by next/font/local in app/layout.tsx. */
+  --font-sans:
+    var(--font-inter-latin), var(--font-inter-latin-ext), ui-sans-serif, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-paper: var(--yc-font-paper);
+  --font-mono: var(--yc-font-mono);
+
+  /* Custom breakpoint for the sidebar's three-state responsive behavior
+     (section 7): >=1100px full, 768-1099px compact rail, <768px drawer.
+     Tailwind's built-in `lg` (1024px) does not line up with the documented
+     1100px threshold, so a dedicated variant is defined instead of reusing it. */
+  --breakpoint-nav: 1100px;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* Visible focus everywhere: the demo is driven partly from the keyboard
+   (case shortcuts, sidebar, mobile drawer) and a lost focus ring on stage is a
+   lost click. */
+:focus-visible {
+  outline: 2px solid var(--color-info);
+  outline-offset: 2px;
+}
+
+@layer components {
+  .operation-progress-sweep {
+    width: 34%;
+    animation: operation-progress-sweep 1.45s ease-in-out infinite;
+    background: var(--yc-gradient-action);
+  }
+
+  .operation-progress-processing {
+    animation: operation-progress-processing 1.2s ease-in-out infinite;
+    background: var(--yc-gradient-action);
+  }
+
+  /* --- document paper (index.html-derived, YetkiCheck-specific) ---------- */
+  .paper {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-card);
+    padding: 22px 20px;
+    font-family: var(--font-paper);
+    font-size: 11.5px;
+    line-height: 1.75;
+    color: var(--color-ink);
+    position: relative;
+  }
+  .paper h4 {
+    text-align: center;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    margin: 0 0 16px;
+    font-weight: 700;
+  }
+  .paper p {
+    margin: 0 0 11px;
+    text-align: justify;
+  }
+  /* Evidence highlight. `.flash` draws the eye when a check is selected. */
+  .paper .hl {
+    background: #fff3c4;
+    box-shadow: 0 0 0 3px #fff3c4;
+    border-radius: 2px;
+  }
+  .paper .hl.flash {
+    animation: evidence-flash 1.4s ease 2;
+  }
+  @keyframes evidence-flash {
+    0%,
+    100% {
+      background: #fff3c4;
+      box-shadow: 0 0 0 3px #fff3c4;
+    }
+    50% {
+      background: #ffd84d;
+      box-shadow: 0 0 0 3px #ffd84d;
+    }
+  }
+  /* Flash on the rendered document page when an evidence item is selected.
+     The flat contract has no bounding box, so the whole page surface flashes —
+     never a pretend-precise rectangle (alignment guide section 10). */
+  .viewer-flash {
+    animation: viewer-flash 0.9s ease-out 1;
+  }
+  @keyframes viewer-flash {
+    0% {
+      box-shadow:
+        0 0 0 4px var(--color-info-soft),
+        0 0 0 1px var(--color-info);
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+
+  .paper-seal {
+    position: absolute;
+    right: 22px;
+    bottom: 20px;
+    width: 74px;
+    height: 74px;
+    border: 2px solid var(--color-border-strong);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    font-size: 7.5px;
+    color: var(--color-ink-muted);
+    transform: rotate(-11deg);
+    letter-spacing: 0.04em;
+  }
+
+  /* --- phone frame (index.html-derived, YetkiCheck-specific) ------------- */
+  .phone {
+    width: 372px;
+    flex: none;
+    background: #0d1117;
+    border-radius: 34px;
+    padding: 11px;
+    box-shadow: var(--shadow-raised);
+  }
+  .phone-inner {
+    background: var(--color-surface);
+    border-radius: 26px;
+    overflow: hidden;
+    min-height: 640px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* --- reveal choreography ------------------------------------------------ */
+  /* Plan section 10.3 / DESIGN_SYSTEM section 12: may delay a visual reveal,
+     never the actual API result. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(-3px);
+    transition: 0.35s;
+  }
+  .reveal.in {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
